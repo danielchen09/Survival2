@@ -47,9 +47,9 @@ public class PlayerMove : MonoBehaviour {
             velocity.y += gravity * Time.deltaTime;
             controller.Move(velocity * Time.deltaTime);
         } else {
-            if (Input.GetButtonDown("Jump")) {
+            if (Input.GetButton("Jump")) {
                 move += Vector3.up;
-            } else if (Input.GetButtonDown("Fire3")) {
+            } else if (Input.GetButton("Fire3")) {
                 move += Vector3.down;
             }
         }
