@@ -15,9 +15,9 @@ RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 9
   m_Fog: 0
-  m_FogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  m_FogColor: {r: 0.6037736, g: 0.6037736, b: 0.6037736, a: 1}
   m_FogMode: 3
-  m_FogDensity: 0.01
+  m_FogDensity: 0.03
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
   m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 1
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
+  m_SkyboxMaterial: {fileID: 2100000, guid: 1c06f9caf4c4a0e45990428aa1e53396, type: 2}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -36,7 +36,7 @@ RenderSettings:
   m_DefaultReflectionResolution: 128
   m_ReflectionBounces: 1
   m_ReflectionIntensity: 1
-  m_CustomReflection: {fileID: 0}
+  m_CustomReflection: {fileID: 8900000, guid: fa41734a337674542975482c8fe96ea1, type: 3}
   m_Sun: {fileID: 705507994}
   m_IndirectSpecularColor: {r: 0, g: 0, b: 0, a: 1}
   m_UseRadianceAmbientProbe: 0
@@ -121,6 +121,95 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &4609047 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2218685070525579887, guid: 1ae32d9dd1a90e1429c6c1bc085f6a8f,
+    type: 3}
+  m_PrefabInstance: {fileID: 2218685071182458654}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &4609048 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2218685070525579882, guid: 1ae32d9dd1a90e1429c6c1bc085f6a8f,
+    type: 3}
+  m_PrefabInstance: {fileID: 2218685071182458654}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &4609053
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4609047}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b9a305e18de0c04dbd257a21cd47087, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sharedProfile: {fileID: 11400000, guid: 1a775bd94b126234c98562621ab572ca, type: 2}
+  isGlobal: 0
+  blendDistance: 0
+  weight: 1
+  priority: 0
+--- !u!114 &4609054
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4609047}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 948f4100a11a5c24981795d21301da5c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  volumeTrigger: {fileID: 4609048}
+  volumeLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  stopNaNPropagation: 1
+  finalBlitToCameraTarget: 0
+  antialiasingMode: 0
+  temporalAntialiasing:
+    jitterSpread: 0.75
+    sharpness: 0.25
+    stationaryBlending: 0.95
+    motionBlending: 0.85
+  subpixelMorphologicalAntialiasing:
+    quality: 2
+  fastApproximateAntialiasing:
+    fastMode: 0
+    keepAlpha: 0
+  fog:
+    enabled: 1
+    excludeSkybox: 1
+  debugLayer:
+    lightMeter:
+      width: 512
+      height: 256
+      showCurves: 1
+    histogram:
+      width: 512
+      height: 256
+      channel: 3
+    waveform:
+      exposure: 0.12
+      height: 256
+    vectorscope:
+      size: 256
+      exposure: 0.12
+    overlaySettings:
+      linearDepth: 0
+      motionColorIntensity: 4
+      motionGridSize: 64
+      colorBlindnessType: 0
+      colorBlindnessStrength: 1
+  m_Resources: {fileID: 11400000, guid: d82512f9c8e5d4a4d938b575d47f88d4, type: 2}
+  m_ShowToolkit: 0
+  m_ShowCustomSorter: 0
+  breakBeforeColorGrading: 0
+  m_BeforeTransparentBundles: []
+  m_BeforeStackBundles: []
+  m_AfterStackBundles: []
 --- !u!1 &47705406
 GameObject:
   m_ObjectHideFlags: 0
@@ -211,6 +300,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f1462f53f5acc5c4abc7df6319ef84c1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  lightbulbObject: {fileID: 5315192930469057854, guid: f7833fdf7fdba4d45b9aabca63f8f7f1,
+    type: 3}
 --- !u!1 &174107799
 GameObject:
   m_ObjectHideFlags: 0
@@ -525,6 +616,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   chunkPrefab: {fileID: 2960841633948919282, guid: e9d2bbc0f7e0aa94e900387d5db0f48a,
     type: 3}
+  treePrefabs:
+  - {fileID: 6780070377919418670, guid: 07da567f88e350e45ae4d6966a10eb0d, type: 3}
+  - {fileID: 4725665272901521165, guid: 14d38d8982c7e374dac2a16a6d3cbc1a, type: 3}
+  - {fileID: 4123364583254327085, guid: 030c0e151c5477e4ca0fcd24fcc34fd6, type: 3}
   player: {fileID: 162356430}
 --- !u!4 &1240120676
 Transform:
@@ -621,6 +716,26 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2218685070525579885, guid: 1ae32d9dd1a90e1429c6c1bc085f6a8f,
+        type: 3}
+      propertyPath: m_ClearFlags
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2218685070525579885, guid: 1ae32d9dd1a90e1429c6c1bc085f6a8f,
+        type: 3}
+      propertyPath: m_BackGroundColor.r
+      value: 0.6039216
+      objectReference: {fileID: 0}
+    - target: {fileID: 2218685070525579885, guid: 1ae32d9dd1a90e1429c6c1bc085f6a8f,
+        type: 3}
+      propertyPath: m_BackGroundColor.g
+      value: 0.6039216
+      objectReference: {fileID: 0}
+    - target: {fileID: 2218685070525579885, guid: 1ae32d9dd1a90e1429c6c1bc085f6a8f,
+        type: 3}
+      propertyPath: m_BackGroundColor.b
+      value: 0.6039216
+      objectReference: {fileID: 0}
     - target: {fileID: 2218685071343727566, guid: 1ae32d9dd1a90e1429c6c1bc085f6a8f,
         type: 3}
       propertyPath: m_SlopeLimit

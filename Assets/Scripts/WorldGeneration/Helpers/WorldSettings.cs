@@ -5,7 +5,7 @@ using UnityEngine;
 
 public struct WorldSettings {
     // chunk and voxel data
-    public static readonly int3 chunkDimension = new int3(16, 16, 16); // how many vertices are in a chunk
+    public static readonly int3 chunkDimension = new int3(17, 17, 17); // how many vertices are in a chunk
     public static readonly float voxelSize = 1f; // distance between vertices
     public static readonly int WorldHeightInChunks = 8;
     public static float WorldHeight {
@@ -24,7 +24,7 @@ public struct WorldSettings {
     public static readonly float persistence = 0.5f;
 
     // mesh generation
-    public static readonly float isoLevel = 0.5f;
+    public static readonly float isoLevel = 0;
 
     // player settings
     public static readonly int RenderDistanceInChunks = 5;

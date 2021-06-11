@@ -2,6 +2,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public struct MaterialType {
-    public Color color;
+public enum MaterialType {
+    NONE,
+    STONE,
+    GRASS,
+    WATER,
+    DIRT
 }

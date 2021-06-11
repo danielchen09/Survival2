@@ -8,6 +8,10 @@ public struct VoxelId {
         this.id = id;
     }
 
+    public VoxelId(int x, int y, int z) {
+        this.id = new int3(x, y, z);
+    }
+
     public List<ChunkId> OverlappingChunks(ChunkId originalChunk) {
         List<ChunkId> chunks = new List<ChunkId>();
 

@@ -5,12 +5,13 @@ using UnityEngine;
 public class ChunkController : MonoBehaviour {
     public static Dictionary<ChunkId, Chunk> chunks;
     public GameObject chunkPrefab;
+    public GameObject[] treePrefabs;
 
     public Transform player;
 
     public WorkState workState;
 
-    private const int MAX_PROCESS_CHUNKS = 20;
+    private const int MAX_PROCESS_CHUNKS = 10000;
     private List<Chunk> chunksToProcess;
 
     private void Awake() {
@@ -28,29 +29,28 @@ public class ChunkController : MonoBehaviour {
     }
 
     private void GetChunksToProcess() {
-        int count = 0;
         foreach (Chunk chunk in chunks.Values) {
             if (chunk.workState.workState == workState.workState) {
-                if (count++ >= MAX_PROCESS_CHUNKS)
-                    return;
                 chunksToProcess.Add(chunk);
             }
         }
     }
 
     private void ProcessChunks() {
-        if (chunksToProcess.Count == 0) {
-            workState.NextInLoop();
-            return;
-        }
         switch (workState.workState) {
             case WorkState.FILL:
                 VoxelDataController.GenerateDataForChunks(chunksToProcess);
                 break;
             case WorkState.MESH:
-                VoxelDataController.GenerateMeshForChunks(chunksToProcess);
+                VoxelDataController.GenerateMeshForChunks(chunksToProcess, GetPlayerChunkCoord());
+                break;
+            case WorkState.SPAWN:
+                foreach (Chunk chunk in chunksToProcess) {
+                    chunk.Spawn();
+                }
                 break;
         }
+        workState.NextInLoop();
         chunksToProcess.Clear();
     }
 
@@ -74,7 +74,7 @@ public class ChunkController : MonoBehaviour {
                         continue;
                     if (!chunks.ContainsKey(newChunk) && Utils.Magnitude(newChunk.id - playerChunkCoord.id) <= WorldSettings.RenderDistanceInChunks) {
                         GameObject chunkGameObject = Instantiate(chunkPrefab, newChunk.ToWorldCoord(), Quaternion.identity);
-                        Chunk chunk = new Chunk(newChunk, chunkGameObject);
+                        Chunk chunk = new Chunk(newChunk, chunkGameObject, treePrefabs);
                         chunks.Add(newChunk, chunk);
                     }
                 }

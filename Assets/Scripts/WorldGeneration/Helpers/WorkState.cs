@@ -2,7 +2,7 @@
     public const int
         FILL = 0,
         MESH = 1,
-        BAKE = 2,
+        SPAWN = 2,
         DONE = 3;
 
     public int workState;

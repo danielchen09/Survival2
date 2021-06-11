@@ -2,10 +2,9 @@
 
 public struct VoxelData {
     public float density;
-    public Color32 color;
-
-    public VoxelData(float density, Color32 color) {
+    public Material material;
+    public VoxelData(float density, Material materialType) {
         this.density = density;
-        this.color = color;
+        this.material = materialType;
     }
 }

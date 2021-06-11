@@ -8,15 +8,30 @@ public class Chunk {
     public MeshFilter meshFilter;
     public MeshCollider meshCollider;
 
+    public GameObject waterChunkGameObject;
+    public MeshFilter waterMeshFilter;
+    public MeshCollider waterMeshCollider;
+
     public WorkState workState;
 
-    public Chunk(ChunkId id, GameObject chunkGameObject) {
+    private GameObject[] treePrefabs;
+
+    public int minScale = -1;
+
+    public Chunk(ChunkId id, GameObject chunkGameObject, GameObject[] treePrefabs) {
         this.id = id;
         this.chunkGameObject = chunkGameObject;
         chunkGameObject.name = $"Chunk({id.id.x}, {id.id.y}, {id.id.z})";
         this.meshFilter = chunkGameObject.GetComponent<MeshFilter>();
         this.meshCollider = chunkGameObject.GetComponent<MeshCollider>();
+
+        this.waterChunkGameObject = chunkGameObject.transform.GetChild(0).gameObject;
+        this.waterMeshFilter = this.waterChunkGameObject.GetComponent<MeshFilter>();
+        this.waterMeshCollider = this.waterChunkGameObject.GetComponent<MeshCollider>();
+
         this.workState = new WorkState();
+
+        this.treePrefabs = treePrefabs;
     }
 
     public void SetMeshData(int vertexCount, NativeArray<VertexData> vertices, NativeArray<ushort> triangles) {
@@ -37,6 +52,26 @@ public class Chunk {
 
         this.meshFilter.mesh = mesh;
         this.meshCollider.sharedMesh = mesh;
+    }
+
+    public void Spawn() {
+        workState.Next();
+        if (id.id.y < 0)
+            return;
+        float x = Random.Range(0, WorldSettings.chunkDimension.x * WorldSettings.voxelSize);
+        float z = Random.Range(0, WorldSettings.chunkDimension.z * WorldSettings.voxelSize);
+        float chunkHeight = WorldSettings.chunkDimension.y * WorldSettings.voxelSize;
+        Vector3 rayStart = new Vector3(x, chunkHeight, z);
+        if (Physics.Raycast(chunkGameObject.transform.TransformPoint(rayStart), Vector3.down, out RaycastHit hitInfo, chunkHeight, 1 << LayerMask.NameToLayer("Ground"))) {
+            Vector3 spawnPoint = chunkGameObject.transform.InverseTransformDirection(hitInfo.point);
+            if (spawnPoint.y < 0)
+                return;
+            int treeIndex = Random.Range(0, treePrefabs.Length);
+            GameObject treeGameObject = Object.Instantiate(treePrefabs[treeIndex], spawnPoint, Quaternion.identity);
+            treeGameObject.transform.position += Vector3.down * 0.5f;
+            treeGameObject.transform.parent = chunkGameObject.transform;
+            treeGameObject.transform.Rotate(0, Random.Range(0f, 360f), 0);
+        }
     }
 
     public void Load() {
