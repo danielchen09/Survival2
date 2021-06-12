@@ -2,8 +2,10 @@
     public const int
         FILL = 0,
         MESH = 1,
-        SPAWN = 2,
-        DONE = 3;
+        BAKE = 2,
+        SPAWN = 3,
+        DONE = 4;
+    public const int STATE_COUNT = 4;
 
     public int workState;
 
@@ -16,12 +18,12 @@
     }
 
     public void Next() {
-        if (workState < 3)
+        if (workState < STATE_COUNT)
             workState = workState + 1;
     }
 
     public void NextInLoop() {
-        workState = (workState + 1) % 3;
+        workState = (workState + 1) % STATE_COUNT;
     }
 
     public void Restart() {

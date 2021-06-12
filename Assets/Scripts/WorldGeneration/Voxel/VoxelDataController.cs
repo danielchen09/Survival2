@@ -42,13 +42,12 @@ public class VoxelDataController {
             if (!voxelData.ContainsKey(overlappingChunk))
                 continue;
             ModifyVoxelData(overlappingChunk, Utils.CoordToIndex(modifiedVoxel.Translate(chunkModified, overlappingChunk).id), action);
-            ChunkController.chunks[overlappingChunk].workState.Set(WorkState.MESH);
         }
-        ChunkController.chunks[chunkModified].workState.Set(WorkState.MESH);
     }
 
     public static void ModifyVoxelData(ChunkId chunkId, int index, Func<VoxelData, VoxelData> action) {
         voxelData[chunkId][index] = action.Invoke(voxelData[chunkId][index]);
+        ChunkController.chunks[chunkId].hasChanged = true;
     }
 
     public static void GenerateDataForChunks(List<Chunk> chunksToProcess) {
@@ -57,9 +56,7 @@ public class VoxelDataController {
             VoxelDataGeneratorJob job = new VoxelDataGeneratorJob() {
                 chunkId = chunk.id,
                 voxelData = new NativeArray<VoxelData>(
-                    WorldSettings.chunkDimension.x * WorldSettings.chunkDimension.y * WorldSettings.chunkDimension.z, Allocator.TempJob),
-                heightMap = new NativeArray<VoxelData>(
-                    WorldSettings.chunkDimension.x * WorldSettings.chunkDimension.z, Allocator.TempJob)
+                    WorldSettings.chunkDimension.x * WorldSettings.chunkDimension.y * WorldSettings.chunkDimension.z, Allocator.TempJob)
             };
             jobDataList.Add(new JobData<VoxelDataGeneratorJob>(job, job.Schedule()));
         }
@@ -70,27 +67,30 @@ public class VoxelDataController {
             jobData.handle.Complete();
             if (voxelData.ContainsKey(chunk.id)) {
                 voxelData[chunk.id] = jobData.job.voxelData.ToArray();
-                heightMap[chunk.id] = jobData.job.heightMap.ToArray();
             } else {
                 voxelData.Add(chunk.id, jobData.job.voxelData.ToArray());
-                heightMap.Add(chunk.id, jobData.job.heightMap.ToArray());
             }
             jobData.job.Dispose();
 
-            chunk.workState.Next();
+            chunk.hasDataGenerated = true;
         }
     }
 
     public static void GenerateMeshForChunks(List<Chunk> chunksToProcess, ChunkId playerChunkCoord) {
         List<JobData<MarchingCubeJob>> jobDataList = new List<JobData<MarchingCubeJob>>();
         foreach (Chunk chunk in chunksToProcess) {
+            int lod = 1 << (int)(Utils.Magnitude(playerChunkCoord.id - chunk.id.id) / 2);
+            if (chunk.meshLod != -1 && lod >= chunk.meshLod && !chunk.hasChanged) {
+                jobDataList.Add(new JobData<MarchingCubeJob>(true));
+                continue;
+            }
             MarchingCubeJob job = new MarchingCubeJob() {
                 dimension = WorldSettings.chunkDimension,
                 voxelSize = WorldSettings.voxelSize,
-                counter = new NativeCounter(Allocator.TempJob),
+                lod = 1,
                 voxelData = new NativeArray<VoxelData>(voxelData[chunk.id], Allocator.TempJob),
-                vertexData = new NativeArray<VertexData>(voxelData[chunk.id].Length * 15, Allocator.TempJob),
-                triangles = new NativeArray<ushort>(voxelData[chunk.id].Length * 15, Allocator.TempJob),
+                vertexData = new NativeList<VertexData>(Allocator.TempJob),
+                triangles = new NativeList<ushort>(Allocator.TempJob),
                 chunkId = chunk.id
             };
             jobDataList.Add(new JobData<MarchingCubeJob>(job, job.Schedule()));
@@ -103,10 +103,27 @@ public class VoxelDataController {
             JobData<MarchingCubeJob> jobData = jobDataList[i];
 
             jobData.handle.Complete();
-            chunk.SetMeshData(jobData.job.counter.Count * 3, jobData.job.vertexData, jobData.job.triangles);
+            chunk.SetMeshData(jobData.job.vertexData.Length, jobData.job.vertexData.AsArray(), jobData.job.triangles.AsArray());
             jobData.job.Dispose();
 
-            chunk.workState.Next();
+            chunk.hasChanged = false;
+            chunk.hasMeshBaked = false;
+            chunk.meshLod = jobData.job.lod;
+        }
+    }
+
+    public static void BakeColliderForChunks(List<Chunk> chunksToProcess) {
+        NativeArray<int> meshIds = new NativeArray<int>(chunksToProcess.Count, Allocator.TempJob);
+        for (int i = 0; i < chunksToProcess.Count; i++) {
+            meshIds[i] = chunksToProcess[i].mesh.GetInstanceID();
+        }
+        new BakeColliderJob() {
+            meshIds = meshIds
+        }.Schedule(meshIds.Length, 10).Complete();
+        meshIds.Dispose();
+        foreach (Chunk chunk in chunksToProcess) {
+            chunk.SetCollider();
+            chunk.hasMeshBaked = true;
         }
     }
 }

@@ -13,7 +13,7 @@ public class PlayerMove : MonoBehaviour {
     public float jumpSpeed = 5f;
     public float fallMultiplier = 2.5f;
     public float lowJumpMultiplier = 2f;
-    public float gravity = -2f;
+    public float gravity = -15f;
     public float groundDistance = .1f;
     public LayerMask groundMask;
 
@@ -36,6 +36,9 @@ public class PlayerMove : MonoBehaviour {
         }
 
         if (!flying) {
+            if (Input.GetButton("Fire3"))
+                move *= 3;
+
             isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
             if (isGrounded && velocity.y < 0)
                 velocity.y = -2f;

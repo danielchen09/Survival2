@@ -81,6 +81,7 @@
     <Compile Include="Assets\Scripts\WorldGeneration\Helpers\Utils.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Helpers\WorkState.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Helpers\WorldSettings.cs" />
+    <Compile Include="Assets\Scripts\WorldGeneration\MeshGeneration\Jobs\BakeColliderJob.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\MeshGeneration\Jobs\MarchingCubeJob.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\MeshGeneration\MarchingCubeTable.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\MeshGeneration\VertexData.cs" />

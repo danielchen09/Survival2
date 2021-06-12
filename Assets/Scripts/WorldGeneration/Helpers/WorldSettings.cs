@@ -27,11 +27,11 @@ public struct WorldSettings {
     public static readonly float isoLevel = 0;
 
     // player settings
-    public static readonly int RenderDistanceInChunks = 5;
+    public static readonly int RenderDistanceInChunks = 8;
     public static float3 RenderDistance {
         get => RenderDistanceInChunks * (float3)chunkDimension * voxelSize;
     }
     public static readonly int ModifyVoxelRadius = 1;
     public static readonly float ReachDistance = 10f;
-    public static readonly float VoxelModifier = 0.01f;
+    public static readonly float VoxelModifier = 0.001f;
 }

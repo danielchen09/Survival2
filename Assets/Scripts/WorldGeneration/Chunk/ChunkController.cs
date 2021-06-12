@@ -10,8 +10,6 @@ public class ChunkController : MonoBehaviour {
     public Transform player;
 
     public WorkState workState;
-
-    private const int MAX_PROCESS_CHUNKS = 10000;
     private List<Chunk> chunksToProcess;
 
     private void Awake() {
@@ -29,10 +27,27 @@ public class ChunkController : MonoBehaviour {
     }
 
     private void GetChunksToProcess() {
-        foreach (Chunk chunk in chunks.Values) {
-            if (chunk.workState.workState == workState.workState) {
-                chunksToProcess.Add(chunk);
-            }
+        switch (workState.workState) {
+            case WorkState.FILL: 
+                foreach (Chunk chunk in chunks.Values) {
+                    if (!chunk.hasDataGenerated)
+                        chunksToProcess.Add(chunk);
+                }
+                break;
+            case WorkState.MESH:
+                foreach (Chunk chunk in chunks.Values) {
+                    if (chunk.hasDataGenerated && (chunk.meshLod != 1 || chunk.hasChanged)) {
+                        chunksToProcess.Add(chunk);
+                    }
+                }
+                break;
+            case WorkState.BAKE:
+                foreach (Chunk chunk in chunks.Values) {
+                    if (chunk.meshLod == 1 && !chunk.hasMeshBaked) {
+                        chunksToProcess.Add(chunk);
+                    }
+                }
+                break;
         }
     }
 
@@ -43,6 +58,9 @@ public class ChunkController : MonoBehaviour {
                 break;
             case WorkState.MESH:
                 VoxelDataController.GenerateMeshForChunks(chunksToProcess, GetPlayerChunkCoord());
+                break;
+            case WorkState.BAKE:
+                VoxelDataController.BakeColliderForChunks(chunksToProcess);
                 break;
             case WorkState.SPAWN:
                 foreach (Chunk chunk in chunksToProcess) {

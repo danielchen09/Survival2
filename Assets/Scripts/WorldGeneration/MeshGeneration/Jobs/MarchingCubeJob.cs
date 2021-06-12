@@ -12,22 +12,23 @@ public struct MarchingCubeJob : IJob {
     public int3 dimension;
     [ReadOnly]
     public float voxelSize;
+    [ReadOnly]
+    public int lod; // powers of 2, higher lod means lower resolution
 
-    public NativeCounter counter;
     [ReadOnly]
     public NativeArray<VoxelData> voxelData;
-    [NativeDisableParallelForRestriction, WriteOnly]
-    public NativeArray<VertexData> vertexData;
-    [NativeDisableParallelForRestriction, WriteOnly]
-    public NativeArray<ushort> triangles;
+    [NativeDisableParallelForRestriction]
+    public NativeList<VertexData> vertexData;
+    [NativeDisableParallelForRestriction]
+    public NativeList<ushort> triangles;
 
     [ReadOnly]
     public ChunkId chunkId;
 
     public void Execute() {
-        for (int x = 0; x < dimension.x - 1; x += 1) {
-            for (int y = 0; y < dimension.y - 1; y += 1) {
-                for (int z = 0; z < dimension.z - 1; z += 1) {
+        for (int x = 0; x < dimension.x - lod; x += lod) {
+            for (int y = 0; y < dimension.y - lod; y += lod) {
+                for (int z = 0; z < dimension.z - lod; z += lod) {
                     int3 coord = new int3(x, y, z);
 
                     int cubeIndex = 0;
@@ -41,8 +42,6 @@ public struct MarchingCubeJob : IJob {
                         continue;
                     
                     for (int i = 0; i < 15 && MarchingCubeTable.triTable[cubeIndex * 16 + i] != -1; i += 3) {
-                        int vertexIndex = counter.Increment() * 3;
-
                         int e1 = MarchingCubeTable.triTable[cubeIndex * 16 + i];
                         int e2 = MarchingCubeTable.triTable[cubeIndex * 16 + i + 1];
                         int e3 = MarchingCubeTable.triTable[cubeIndex * 16 + i + 2];
@@ -56,14 +55,12 @@ public struct MarchingCubeJob : IJob {
                         Color32 color = VoteColor(ChooseColor(coord, e1, v1), ChooseColor(coord, e2, v2), ChooseColor(coord, e3, v3));
                         Color32 rcolor = RandomizeColor(color, 0.02f, new float3(x, y, z));
 
-                        vertexData[vertexIndex] = new VertexData(v1, normal, rcolor);
-                        triangles[vertexIndex] = (ushort)(vertexIndex);
-
-                        vertexData[vertexIndex + 1] = new VertexData(v2, normal, rcolor);
-                        triangles[vertexIndex + 1] = (ushort)(vertexIndex + 1);
-
-                        vertexData[vertexIndex + 2] = new VertexData(v3, normal, rcolor);
-                        triangles[vertexIndex + 2] = (ushort)(vertexIndex + 2);
+                        vertexData.Add(new VertexData(v1, normal, color));
+                        triangles.Add((ushort)(vertexData.Length - 1));
+                        vertexData.Add(new VertexData(v2, normal, color));
+                        triangles.Add((ushort)(vertexData.Length - 1));
+                        vertexData.Add(new VertexData(v3, normal, color));
+                        triangles.Add((ushort)(vertexData.Length - 1));
                     }
                 }
             }
@@ -139,11 +136,10 @@ public struct MarchingCubeJob : IJob {
     }
 
     private int3 VertexCoord(int3 coord, int vertex) {
-        return coord + MarchingCubeTable.vertexOffsets[vertex];
+        return coord + MarchingCubeTable.vertexOffsets[vertex] * lod;
     }
 
     public void Dispose() {
-        this.counter.Dispose();
         this.voxelData.Dispose();
         this.vertexData.Dispose();
         this.triangles.Dispose();

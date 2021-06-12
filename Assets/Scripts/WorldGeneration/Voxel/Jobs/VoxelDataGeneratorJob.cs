@@ -9,7 +9,7 @@ public struct VoxelDataGeneratorJob : IJob {
     public ChunkId chunkId;
 
     public NativeArray<VoxelData> voxelData;
-    public NativeArray<VoxelData> heightMap;
+    public bool hasSurface;
 
     public void Execute() {
         for (int x = 0; x < WorldSettings.chunkDimension.x; x++) {
@@ -30,7 +30,6 @@ public struct VoxelDataGeneratorJob : IJob {
                     lacunarity = 2f,
                     persistence = 0.4f
                 }) * noise2d * (WorldSettings.WorldHeight - WorldSettings.voxelSize) + WorldSettings.voxelSize;
-                heightMap[Utils.CoordToIndex2D(new int2(x, z))] = new VoxelData(terrainHeight, MaterialController.grassType);
 
                 Material material = MaterialController.stoneType;
                 for (int y = 0; y < WorldSettings.chunkDimension.y; y++) {
@@ -40,13 +39,14 @@ public struct VoxelDataGeneratorJob : IJob {
                     if (density > 0 && density < WorldSettings.voxelSize / WorldSettings.WorldHeight * 2) {
                         // surface
                         material = MaterialController.grassType;
+                        hasSurface = true;
                     }
                     if (height > WorldSettings.WorldHeight * 0.3f + NoiseGenerator.Snoise(terrainCoord) * WorldSettings.voxelSize * 10)
                         material = MaterialController.stoneType;
 
                     if (height <= WorldSettings.voxelSize - WorldSettings.WorldDepth) {
                         density = 1;
-                    } else if (density > 0.1f) {
+                    } else if (density > 0.2f) {
                         density = NoiseGenerator.Generate(new float3(terrainCoord.x, height, terrainCoord.y), new NoiseSettings() {
                             octaves = 3,
                             frequency = 0.05f,
@@ -66,6 +66,5 @@ public struct VoxelDataGeneratorJob : IJob {
 
     public void Dispose() {
         this.voxelData.Dispose();
-        this.heightMap.Dispose();
     }
 }

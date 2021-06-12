@@ -9,10 +9,15 @@ public class Chunk {
     public MeshCollider meshCollider;
 
     public GameObject waterChunkGameObject;
+    public Mesh mesh;
     public MeshFilter waterMeshFilter;
     public MeshCollider waterMeshCollider;
 
-    public WorkState workState;
+    public int meshLod = -1;
+    public bool hasDataGenerated = false;
+    public bool hasChanged = false;
+    public bool hasMeshBaked = false;
+    public bool hasSurface;
 
     private GameObject[] treePrefabs;
 
@@ -29,13 +34,11 @@ public class Chunk {
         this.waterMeshFilter = this.waterChunkGameObject.GetComponent<MeshFilter>();
         this.waterMeshCollider = this.waterChunkGameObject.GetComponent<MeshCollider>();
 
-        this.workState = new WorkState();
-
         this.treePrefabs = treePrefabs;
     }
 
     public void SetMeshData(int vertexCount, NativeArray<VertexData> vertices, NativeArray<ushort> triangles) {
-        Mesh mesh = new Mesh();
+        mesh = new Mesh();
         SubMeshDescriptor subMesh = new SubMeshDescriptor();
 
         mesh.SetVertexBufferParams(vertexCount, VertexData.bufferMemoryLayout);
@@ -51,11 +54,14 @@ public class Chunk {
         mesh.RecalculateBounds();
 
         this.meshFilter.mesh = mesh;
+        //this.meshCollider.sharedMesh = mesh;
+    }
+
+    public void SetCollider() {
         this.meshCollider.sharedMesh = mesh;
     }
 
     public void Spawn() {
-        workState.Next();
         if (id.id.y < 0)
             return;
         float x = Random.Range(0, WorldSettings.chunkDimension.x * WorldSettings.voxelSize);
