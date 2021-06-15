@@ -19,7 +19,7 @@ public struct VoxelDataGeneratorJob : IJob {
 
                 float noise2d = NoiseGenerator.GeneratePositive(terrainCoord, new NoiseSettings() {
                     octaves = 1,
-                    frequency = 0.007f,
+                    frequency = 0.001f,
                     lacunarity = 1f,
                     persistence = 1f
                 });
@@ -47,14 +47,14 @@ public struct VoxelDataGeneratorJob : IJob {
                     if (height <= WorldSettings.voxelSize - WorldSettings.WorldDepth) {
                         density = 1;
                     } else if (density > 0.2f) {
-                        density = NoiseGenerator.Generate(new float3(terrainCoord.x, height, terrainCoord.y), new NoiseSettings() {
+                        density = NoiseGenerator.GenerateRidge(new float3(terrainCoord.x, height, terrainCoord.y), new NoiseSettings() {
                             octaves = 3,
-                            frequency = 0.05f,
+                            frequency = 0.03f,
                             lacunarity = 2f,
-                            persistence = 0.3f
+                            persistence = 0.5f
                         }) + math.clamp(0.45f - math.abs(height) / WorldSettings.WorldDepth, 0.2f, 0.45f);
                     }
-                    voxelData[Utils.CoordToIndex(new int3(x, y, z))] = new VoxelData(density, material);
+                    voxelData[Utils.CoordToIndex(new int3(x, y, z))] = new VoxelData(math.clamp(density, -1, 1), material);
                 }
             }
         }

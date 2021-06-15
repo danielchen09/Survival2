@@ -36,14 +36,14 @@ public class ChunkController : MonoBehaviour {
                 break;
             case WorkState.MESH:
                 foreach (Chunk chunk in chunks.Values) {
-                    if (chunk.hasDataGenerated && (chunk.meshLod != 1 || chunk.hasChanged)) {
+                    if (chunk.hasDataGenerated && (chunk.hasChanged || !chunk.hasMeshGenerated)) {
                         chunksToProcess.Add(chunk);
                     }
                 }
                 break;
             case WorkState.BAKE:
                 foreach (Chunk chunk in chunks.Values) {
-                    if (chunk.meshLod == 1 && !chunk.hasMeshBaked) {
+                    if (chunk.hasMeshGenerated && !chunk.hasColliderBaked) {
                         chunksToProcess.Add(chunk);
                     }
                 }
@@ -61,11 +61,6 @@ public class ChunkController : MonoBehaviour {
                 break;
             case WorkState.BAKE:
                 VoxelDataController.BakeColliderForChunks(chunksToProcess);
-                break;
-            case WorkState.SPAWN:
-                foreach (Chunk chunk in chunksToProcess) {
-                    chunk.Spawn();
-                }
                 break;
         }
         workState.NextInLoop();
@@ -92,7 +87,7 @@ public class ChunkController : MonoBehaviour {
                         continue;
                     if (!chunks.ContainsKey(newChunk) && Utils.Magnitude(newChunk.id - playerChunkCoord.id) <= WorldSettings.RenderDistanceInChunks) {
                         GameObject chunkGameObject = Instantiate(chunkPrefab, newChunk.ToWorldCoord(), Quaternion.identity);
-                        Chunk chunk = new Chunk(newChunk, chunkGameObject, treePrefabs);
+                        Chunk chunk = new Chunk(newChunk, chunkGameObject);
                         chunks.Add(newChunk, chunk);
                     }
                 }

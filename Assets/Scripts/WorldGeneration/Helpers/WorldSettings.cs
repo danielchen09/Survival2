@@ -33,5 +33,5 @@ public struct WorldSettings {
     }
     public static readonly int ModifyVoxelRadius = 1;
     public static readonly float ReachDistance = 10f;
-    public static readonly float VoxelModifier = 0.001f;
+    public static readonly float VoxelModifier = 0.01f;
 }

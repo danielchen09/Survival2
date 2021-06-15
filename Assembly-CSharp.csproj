@@ -67,6 +67,8 @@
     <Compile Include="Assets\Scripts\Player\PlayerLook.cs" />
     <Compile Include="Assets\Scripts\Player\PlayerMove.cs" />
     <Compile Include="Assets\Scripts\Testing\TestScript.cs" />
+    <Compile Include="Assets\Scripts\WorldGeneration\Biomes\BiomeController.cs" />
+    <Compile Include="Assets\Scripts\WorldGeneration\Biomes\BiomeType.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Chunk\Chunk.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Chunk\ChunkController.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Chunk\ChunkId.cs" />
@@ -86,7 +88,6 @@
     <Compile Include="Assets\Scripts\WorldGeneration\MeshGeneration\MarchingCubeTable.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\MeshGeneration\VertexData.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Voxel\Jobs\VoxelDataGeneratorJob.cs" />
-    <Compile Include="Assets\Scripts\WorldGeneration\Voxel\Jobs\WaterUpdateJob.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Voxel\VoxelData.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Voxel\VoxelDataController.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Voxel\VoxelId.cs" />

@@ -35,7 +35,8 @@ public struct NoiseGenerator {
         for (int octave = 0; octave < noiseSettings.octaves; octave++) {
             val += math.abs(Snoise(pos * noiseSettings.frequency * math.pow(noiseSettings.lacunarity, octave))) * math.pow(noiseSettings.persistence, octave);
         }
-        return math.clamp(val, -1, 1);
+        val = val - 0.5f;
+        return math.clamp(-val, -1, 1);
     }
 
     public static float Snoise(float pos) {

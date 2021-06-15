@@ -12,8 +12,6 @@ public struct MarchingCubeJob : IJob {
     public int3 dimension;
     [ReadOnly]
     public float voxelSize;
-    [ReadOnly]
-    public int lod; // powers of 2, higher lod means lower resolution
 
     [ReadOnly]
     public NativeArray<VoxelData> voxelData;
@@ -26,9 +24,9 @@ public struct MarchingCubeJob : IJob {
     public ChunkId chunkId;
 
     public void Execute() {
-        for (int x = 0; x < dimension.x - lod; x += lod) {
-            for (int y = 0; y < dimension.y - lod; y += lod) {
-                for (int z = 0; z < dimension.z - lod; z += lod) {
+        for (int x = 0; x < dimension.x - 1; x += 1) {
+            for (int y = 0; y < dimension.y - 1; y += 1) {
+                for (int z = 0; z < dimension.z - 1; z += 1) {
                     int3 coord = new int3(x, y, z);
 
                     int cubeIndex = 0;
@@ -136,7 +134,7 @@ public struct MarchingCubeJob : IJob {
     }
 
     private int3 VertexCoord(int3 coord, int vertex) {
-        return coord + MarchingCubeTable.vertexOffsets[vertex] * lod;
+        return coord + MarchingCubeTable.vertexOffsets[vertex];
     }
 
     public void Dispose() {

@@ -7,7 +7,6 @@ using UnityEngine;
 
 public class VoxelDataController {
     public static Dictionary<ChunkId, VoxelData[]> voxelData = new Dictionary<ChunkId, VoxelData[]>();
-    public static Dictionary<ChunkId, VoxelData[]> heightMap = new Dictionary<ChunkId, VoxelData[]>();
 
     public static void Deform(float3 hitPoint, float val) {
         ChunkId chunkHit = ChunkId.FromWorldCoord(hitPoint);
@@ -15,7 +14,7 @@ public class VoxelDataController {
         List<VoxelId> neighbors = voxelHit.GetNeighbors(WorldSettings.ModifyVoxelRadius);
         foreach (VoxelId neighbor in neighbors) {
             ModifyVoxelData(chunkHit, neighbor, (VoxelData original) => new VoxelData() {
-                density = original.density + val,
+                density = Mathf.Clamp(original.density + (val > 0 ? val / 30 : val) * (10 - 9 * Mathf.Pow(original.density, 2)), -1, 1),
                 material = original.material
             });
         }
@@ -49,6 +48,10 @@ public class VoxelDataController {
         voxelData[chunkId][index] = action.Invoke(voxelData[chunkId][index]);
         ChunkController.chunks[chunkId].hasChanged = true;
     }
+    public static void SetVoxelData(ChunkId chunkId, VoxelData[] newVoxelData) {
+        voxelData[chunkId] = newVoxelData;
+        ChunkController.chunks[chunkId].hasChanged = true;
+    }
 
     public static void GenerateDataForChunks(List<Chunk> chunksToProcess) {
         List<JobData<VoxelDataGeneratorJob>> jobDataList = new List<JobData<VoxelDataGeneratorJob>>();
@@ -79,15 +82,9 @@ public class VoxelDataController {
     public static void GenerateMeshForChunks(List<Chunk> chunksToProcess, ChunkId playerChunkCoord) {
         List<JobData<MarchingCubeJob>> jobDataList = new List<JobData<MarchingCubeJob>>();
         foreach (Chunk chunk in chunksToProcess) {
-            int lod = 1 << (int)(Utils.Magnitude(playerChunkCoord.id - chunk.id.id) / 2);
-            if (chunk.meshLod != -1 && lod >= chunk.meshLod && !chunk.hasChanged) {
-                jobDataList.Add(new JobData<MarchingCubeJob>(true));
-                continue;
-            }
             MarchingCubeJob job = new MarchingCubeJob() {
                 dimension = WorldSettings.chunkDimension,
                 voxelSize = WorldSettings.voxelSize,
-                lod = 1,
                 voxelData = new NativeArray<VoxelData>(voxelData[chunk.id], Allocator.TempJob),
                 vertexData = new NativeList<VertexData>(Allocator.TempJob),
                 triangles = new NativeList<ushort>(Allocator.TempJob),
@@ -107,8 +104,7 @@ public class VoxelDataController {
             jobData.job.Dispose();
 
             chunk.hasChanged = false;
-            chunk.hasMeshBaked = false;
-            chunk.meshLod = jobData.job.lod;
+            chunk.hasColliderBaked = false;
         }
     }
 
@@ -123,7 +119,7 @@ public class VoxelDataController {
         meshIds.Dispose();
         foreach (Chunk chunk in chunksToProcess) {
             chunk.SetCollider();
-            chunk.hasMeshBaked = true;
+            chunk.hasColliderBaked = true;
         }
     }
 }
