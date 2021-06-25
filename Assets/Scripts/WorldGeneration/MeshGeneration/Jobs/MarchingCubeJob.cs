@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using Unity.Burst;
 using Unity.Collections;
@@ -8,138 +9,207 @@ using UnityEngine;
 
 [BurstCompile]
 public struct MarchingCubeJob : IJob {
-    [ReadOnly]
-    public int3 dimension;
-    [ReadOnly]
+    public const float EPSILON = 0.00001f;
+
     public float voxelSize;
-
-    [ReadOnly]
-    public NativeArray<VoxelData> voxelData;
-    [NativeDisableParallelForRestriction]
-    public NativeList<VertexData> vertexData;
-    [NativeDisableParallelForRestriction]
-    public NativeList<ushort> triangles;
-
-    [ReadOnly]
+    public int lod;
     public ChunkId chunkId;
 
+    // outer level indexed by chunkid, inner level indexed by voxelid
+    // outer level dimension: (1 << lod) ^ 3
+    // inner level dimension: 17 ^ 3
+    public NativeArray<VoxelData> voxelDataList;
+    public NativeList<VertexData> vertices;
+    public NativeList<int> normalCount;
+    public NativeList<ushort> triangles;
+    // 16x16x16x4 for each cell, edge 0 1 2 3
+    public NativeArray<ushort> sharedData;
+
     public void Execute() {
-        for (int x = 0; x < dimension.x - 1; x += 1) {
-            for (int y = 0; y < dimension.y - 1; y += 1) {
-                for (int z = 0; z < dimension.z - 1; z += 1) {
+        for (int x = 0; x < 16; x++) {
+            for (int y = 0; y < 16; y++) {
+                for (int z = 0; z < 16; z++) {
                     int3 coord = new int3(x, y, z);
-
-                    int cubeIndex = 0;
-                    for (int vertex = 0; vertex < 8; vertex++) {
-                        if (voxelData[VertexIndex(coord, vertex)].density < WorldSettings.isoLevel) {
-                            cubeIndex |= (1 << vertex);
-                        }
-                    }
-
-                    if (cubeIndex == 0 || cubeIndex == 255)
-                        continue;
-                    
-                    for (int i = 0; i < 15 && MarchingCubeTable.triTable[cubeIndex * 16 + i] != -1; i += 3) {
-                        int e1 = MarchingCubeTable.triTable[cubeIndex * 16 + i];
-                        int e2 = MarchingCubeTable.triTable[cubeIndex * 16 + i + 1];
-                        int e3 = MarchingCubeTable.triTable[cubeIndex * 16 + i + 2];
-
-                        float3 v1 = InterpolateVertex(coord, e1) * voxelSize;
-                        float3 v2 = InterpolateVertex(coord, e2) * voxelSize;
-                        float3 v3 = InterpolateVertex(coord, e3) * voxelSize;
-
-                        float3 normal = math.normalize(math.cross(v2 - v1, v3 - v1));
-
-                        Color32 color = VoteColor(ChooseColor(coord, e1, v1), ChooseColor(coord, e2, v2), ChooseColor(coord, e3, v3));
-                        Color32 rcolor = RandomizeColor(color, 0.02f, new float3(x, y, z));
-
-                        vertexData.Add(new VertexData(v1, normal, color));
-                        triangles.Add((ushort)(vertexData.Length - 1));
-                        vertexData.Add(new VertexData(v2, normal, color));
-                        triangles.Add((ushort)(vertexData.Length - 1));
-                        vertexData.Add(new VertexData(v3, normal, color));
-                        triangles.Add((ushort)(vertexData.Length - 1));
+                    if (IsTransitionCell(coord)) {
+                        ConstructTransitionCell(coord);
+                    } else {
+                        ConstructRegularCell(coord);
                     }
                 }
             }
         }
+        for (int i = 0; i < vertices.Length; i++) {
+            vertices[i] = ModifyNormal(vertices[i], math.normalize(vertices[i].normal / normalCount[i]));
+        }
     }
 
-    private Color32 RandomizeColor(Color32 color, float radius, float3 pos) {
-        pos = pos * voxelSize + chunkId.ToWorldCoord();
-        float phi = 2 * math.PI * NoiseGenerator.SnoisePositive(pos * 0.05f);
-        float theta = 2 * math.PI * NoiseGenerator.SnoisePositive(pos * 0.05f);
-        return Utils.Round(new Color(
-            radius * math.cos(phi) * math.sin(theta),
-            radius * math.sin(phi) * math.cos(theta),
-            radius * math.cos(theta)), radius / 3f) + color;
+    public bool IsTransitionCell(int3 coord) {
+        return false; // TODO: determine whether a cell is a transition cell
     }
 
-    private Color32 VoteColor(Color32 c1, Color32 c2, Color32 c3) {
-        if (Utils.Equals(c1, c2) || Utils.Equals(c1, c3))
-            return c1;
-        if (Utils.Equals(c2, c3))
-            return c3;
-        return c1;
+    public void ConstructRegularCell(int3 coord) {
+        int caseCode = 0;
+        for (int corner = 0; corner < 8; corner++) {
+            if (GetData(CornerCoord(coord, corner)).density < 0) {
+                caseCode |= (1 << corner);
+            }
+        }
+        if (caseCode == 0 || caseCode == 255)
+            return;
+
+        byte cellClass = TransvoxelTable.RegularCellClass[caseCode];
+        ushort triangleCount = (ushort)(TransvoxelTable.RegularGeometryCount[cellClass] & 0x0F);
+        ushort[] vertexDataList = TransvoxelTable.RegularVertexData[caseCode];
+        byte[] vertexIndex = TransvoxelTable.RegularVertexIndex[cellClass];
+
+        for (int i = 0; i < triangleCount; i++) {
+            ushort vertexData0 = vertexDataList[vertexIndex[i * 3]];
+            ushort vertexData1 = vertexDataList[vertexIndex[i * 3 + 1]];
+            ushort vertexData2 = vertexDataList[vertexIndex[i * 3 + 2]];
+
+            float3 v0 = ProcessVertex(coord, vertexData0);
+            float3 v1 = ProcessVertex(coord, vertexData1);
+            float3 v2 = ProcessVertex(coord, vertexData2);
+
+            float3 normal = math.normalize(math.cross(v1 - v0, v2 - v0));
+            for (int j = 0; j < 3; j++) {
+                int modifyIndex = triangles[triangles.Length - 1 - j];
+                vertices[modifyIndex] = ModifyNormal(vertices[modifyIndex], vertices[modifyIndex].normal + normal);
+                normalCount[modifyIndex] = normalCount[modifyIndex] + 1;
+            }
+        }
     }
 
-    private Color InterpolateColor(int3 coord, int edge, float3 edgePos) {
-        int neighbor1 = MarchingCubeTable.edgeNeighbors[edge * 2];
-        int neighbor2 = MarchingCubeTable.edgeNeighbors[edge * 2 + 1];
+    public void ConstructTransitionCell(int3 coord) {
 
-        Color c1 = voxelData[VertexIndex(coord, neighbor1)].material.color;
-        Color c2 = voxelData[VertexIndex(coord, neighbor2)].material.color;
-
-        float3 p1 = VertexCoord(coord, neighbor1);
-        float3 p2 = VertexCoord(coord, neighbor2);
-
-        float ratio = Utils.Magnitude(edgePos - p1) / Utils.Magnitude(p2 - p1);
-        return c1 + (c2 - c1) * ratio;
     }
 
-    private Color32 ChooseColor(int3 coord, int edge, float3 edgePos) {
-        int neighbor1 = MarchingCubeTable.edgeNeighbors[edge * 2];
-        int neighbor2 = MarchingCubeTable.edgeNeighbors[edge * 2 + 1];
+    public float3 ProcessVertex(int3 coord, ushort vertexData) {
+        ushort v0 = (ushort)((vertexData >> 4) & 0x0F);
+        ushort v1 = (ushort)(vertexData & 0x0F);
 
-        Color32 c1 = voxelData[VertexIndex(coord, neighbor1)].material.color;
-        Color32 c2 = voxelData[VertexIndex(coord, neighbor2)].material.color;
+        float d0 = GetData(CornerCoord(coord, v0)).density;
+        float d1 = GetData(CornerCoord(coord, v1)).density;
 
-        float3 p1 = VertexCoord(coord, neighbor1);
-        float3 p2 = VertexCoord(coord, neighbor2);
+        // t larger => further away from p1, limited to 256 values
+        float t = d1 / (d1 - d0);
 
-        return Utils.Magnitude(edgePos - p1) < Utils.Magnitude(edge - p2) ? c1 : c2;
+        if (1 - t < EPSILON) {
+            // at high numbered endpoint
+            if (v1 == 7) {
+                // cell owns vertex, create vertex on corner
+                return AddVertexAtCorner(coord, v1);
+            } else {
+                // share vertex on corner
+                int3 cellToShare = coord + GetShareOffsetFromCorner(v1);
+                if (!InBound(cellToShare)) {
+                    return AddVertexAtCorner(coord, v1);
+                } else {
+                    return ShareVertex(cellToShare, 0);
+                }
+            }
+        } else if (t > EPSILON) {
+            // at interior of edge
+            if (v1 == 7) {
+                // cell owns vertex, create vertex on edge
+                return AddVertexAtEdge(coord, vertexData, t);
+            } else {
+                // share vertex, share vertex on edge
+                int3 cellToShare = coord + GetShareOffsetFromCorner(v1);
+                if (!InBound(cellToShare)) {
+                    return AddVertexAtEdge(coord, vertexData, t);
+                } else {
+                    return ShareVertex(cellToShare, (vertexData >> 8) & 0x0F);
+                }
+            }
+        } else {
+            // at low numbered endpoint
+            // share if possible
+            int3 cellToShare = coord + GetShareOffsetFromCorner(v0);
+            if (!InBound(cellToShare)) {
+                return AddVertexAtCorner(coord, v0);
+            } else {
+                return ShareVertex(cellToShare, 0);
+            }
+        }
+    }
+    public float3 AddVertexAtCorner(int3 coord, int corner) {
+        float3 vertexPos = (float3)CornerCoord(coord, corner) * (1 << lod) * voxelSize;
+        ushort addIndex = (ushort)vertices.Length;
+        if (corner == 7)
+            sharedData[Utils.CoordToIndex(coord, 16) * 4] = addIndex;
+        vertices.Add(new VertexData(vertexPos, 0, Color.white));
+        triangles.Add(addIndex);
+        normalCount.Add(0);
+        return vertexPos;
     }
 
-    private float3 InterpolateVertex(int3 coord, int edge) {
-        int neighbor1 = MarchingCubeTable.edgeNeighbors[edge * 2];
-        int neighbor2 = MarchingCubeTable.edgeNeighbors[edge * 2 + 1];
+    public float3 AddVertexAtEdge(int3 coord, ushort vertexData, float t) {
+        ushort v0 = (ushort)((vertexData >> 4) & 0x0F);
+        ushort v1 = (ushort)(vertexData & 0x0F);
 
-        float v1 = voxelData[VertexIndex(coord, neighbor1)].density;
-        float v2 = voxelData[VertexIndex(coord, neighbor2)].density;
+        float3 p0 = (float3)CornerCoord(coord, v0) * (1 << lod) * voxelSize;
+        float3 p1 = (float3)CornerCoord(coord, v1) * (1 << lod) * voxelSize;
 
-        float3 p1 = VertexCoord(coord, neighbor1);
-        float3 p2 = VertexCoord(coord, neighbor2);
-
-        if (math.abs(WorldSettings.isoLevel - v1) < 0.00001f)
-            return p1;
-        if (math.abs(WorldSettings.isoLevel - v2) < 0.00001f)
-            return p2;
-        if (math.abs(v1 - v2) < 0.00001f)
-            return p1;
-        return p1 + (WorldSettings.isoLevel - v1) * (p2 - p1) / (v2 - v1);
+        float3 vertexPos = p1 + t * (p0 - p1);
+        ushort addIndex = (ushort)vertices.Length;
+        int addEdge = (vertexData >> 8) & 0x0F;
+        if (v1 == 7)
+            sharedData[Utils.CoordToIndex(coord, 16) * 4 + addEdge] = addIndex;
+        vertices.Add(new VertexData(vertexPos, 0, Color.white));
+        triangles.Add(addIndex);
+        normalCount.Add(0);
+        return vertexPos;
     }
 
-    private int VertexIndex(int3 coord, int vertex) {
-        return Utils.CoordToIndex(VertexCoord(coord, vertex));
+    public float3 ShareVertex(int3 cellToShare, int shareEdge) {
+        ushort shareIndex = sharedData[Utils.CoordToIndex(cellToShare, 16) * 4 + shareEdge];
+        triangles.Add(shareIndex);
+        return vertices[shareIndex].position;
     }
 
-    private int3 VertexCoord(int3 coord, int vertex) {
-        return coord + MarchingCubeTable.vertexOffsets[vertex];
+    public VoxelData GetData(int3 coord) {
+        // asking for which voxel for lod0 then its in a regular chunk
+        // if lod > 0 then this will span across multiple chunks
+        int3 voxelCoord = coord * (1 << lod);
+
+        // which chunk the voxel requested is in;
+        // for lod 0 then its always chunk 0
+        int3 chunkCoord = voxelCoord / 17;
+
+        // index in voxelDataList the requested chunk is in
+        int chunkIndex = Utils.CoordToIndex(chunkCoord, 1 << lod);
+        // index in voxelDataList the requested voxel is in
+        int voxelIndex = Utils.CoordToIndex(voxelCoord % 17);
+
+        return voxelDataList[chunkIndex * 17 * 17 * 17 + voxelIndex];
+    }
+
+    public int3 GetShareOffsetFromCorner(ushort corner) {
+        return MarchingCubeTable.ShareOffset[corner];
+    }
+        
+    public int3 CornerCoord(int3 coord, int corner) {
+        return coord + MarchingCubeTable.CornerOffset[corner];
+    }
+
+    public bool InBound(int3 coord) {
+        for (int i = 0; i < 3; i++) {
+            if (coord[i] < 0 || coord[i] >= 16)
+                return false;
+        }
+        return true;
+    }
+
+    private VertexData ModifyNormal(VertexData original, float3 normal) {
+        return new VertexData(original.position, normal, original.color);
     }
 
     public void Dispose() {
-        this.voxelData.Dispose();
-        this.vertexData.Dispose();
+        this.voxelDataList.Dispose();
+        this.vertices.Dispose();
         this.triangles.Dispose();
+        this.normalCount.Dispose();
+        this.sharedData.Dispose();
     }
 }

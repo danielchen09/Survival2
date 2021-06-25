@@ -5,16 +5,16 @@ using UnityEngine;
 
 public struct WorldSettings {
     // chunk and voxel data
-    public static readonly int3 chunkDimension = new int3(17, 17, 17); // how many vertices are in a chunk
+    public static readonly int chunkDimension = 17; // how many vertices are in a chunk
     public static readonly float voxelSize = 1f; // distance between vertices
     public static readonly int WorldHeightInChunks = 8;
     public static float WorldHeight {
-        get => WorldHeightInChunks * (chunkDimension.y - 1) * voxelSize;
+        get => WorldHeightInChunks * (chunkDimension - 1) * voxelSize;
     }
 
     public static readonly int WorldDepthInChunks = 3;
     public static float WorldDepth {
-        get => WorldDepthInChunks * (chunkDimension.y - 1) * voxelSize;
+        get => WorldDepthInChunks * (chunkDimension - 1) * voxelSize;
     }
 
     // noise generation

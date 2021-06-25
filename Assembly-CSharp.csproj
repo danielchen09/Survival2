@@ -71,7 +71,9 @@
     <Compile Include="Assets\Scripts\WorldGeneration\Biomes\BiomeType.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Chunk\Chunk.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Chunk\ChunkController.cs" />
+    <Compile Include="Assets\Scripts\WorldGeneration\Chunk\ChunkData.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Chunk\ChunkId.cs" />
+    <Compile Include="Assets\Scripts\WorldGeneration\Chunk\ChunkInstance.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Coloring\Material.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Coloring\MaterialController.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Coloring\MaterialType.cs" />
@@ -79,13 +81,15 @@
     <Compile Include="Assets\Scripts\WorldGeneration\Helpers\NativeCounter.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Helpers\NoiseGenerator.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Helpers\NoiseSettings.cs" />
+    <Compile Include="Assets\Scripts\WorldGeneration\Helpers\OctTree.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Helpers\SimplexNoise.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Helpers\Utils.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Helpers\WorkState.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Helpers\WorldSettings.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\MeshGeneration\Jobs\BakeColliderJob.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\MeshGeneration\Jobs\MarchingCubeJob.cs" />
-    <Compile Include="Assets\Scripts\WorldGeneration\MeshGeneration\MarchingCubeTable.cs" />
+    <Compile Include="Assets\Scripts\WorldGeneration\MeshGeneration\Jobs\MarchingCubeTable.cs" />
+    <Compile Include="Assets\Scripts\WorldGeneration\MeshGeneration\TransvoxelTable.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\MeshGeneration\VertexData.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Voxel\Jobs\VoxelDataGeneratorJob.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Voxel\VoxelData.cs" />

@@ -12,8 +12,8 @@ public struct VoxelDataGeneratorJob : IJob {
     public bool hasSurface;
 
     public void Execute() {
-        for (int x = 0; x < WorldSettings.chunkDimension.x; x++) {
-            for (int z = 0; z < WorldSettings.chunkDimension.z; z++) {
+        for (int x = 0; x < WorldSettings.chunkDimension; x++) {
+            for (int z = 0; z < WorldSettings.chunkDimension; z++) {
                 float3 chunkCoord = chunkId.ToWorldCoord();
                 float2 terrainCoord = new float2(x * WorldSettings.voxelSize + chunkCoord.x, z * WorldSettings.voxelSize + chunkCoord.z);
 
@@ -32,7 +32,7 @@ public struct VoxelDataGeneratorJob : IJob {
                 }) * noise2d * (WorldSettings.WorldHeight - WorldSettings.voxelSize) + WorldSettings.voxelSize;
 
                 Material material = MaterialController.stoneType;
-                for (int y = 0; y < WorldSettings.chunkDimension.y; y++) {
+                for (int y = 0; y < WorldSettings.chunkDimension; y++) {
                     float height = y * WorldSettings.voxelSize + chunkCoord.y;
 
                     float density = (terrainHeight - height) / WorldSettings.WorldHeight;
@@ -65,6 +65,6 @@ public struct VoxelDataGeneratorJob : IJob {
     }
 
     public void Dispose() {
-        this.voxelData.Dispose();
+        voxelData.Dispose();
     }
 }

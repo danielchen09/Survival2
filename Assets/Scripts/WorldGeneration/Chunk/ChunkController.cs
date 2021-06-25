@@ -3,108 +3,60 @@ using Unity.Mathematics;
 using UnityEngine;
 
 public class ChunkController : MonoBehaviour {
-    public static Dictionary<ChunkId, Chunk> chunks;
+    public const int MAX_LOD = 4; // 1 cell / 16x16 chunk(0)
+    public static Dictionary<ChunkId, Chunk>[] chunks = new Dictionary<ChunkId, Chunk>[MAX_LOD];
+    public static OctTree octTree = new OctTree();
     public GameObject chunkPrefab;
-    public GameObject[] treePrefabs;
 
     public Transform player;
-
-    public WorkState workState;
-    private List<Chunk> chunksToProcess;
+    public ChunkId playerChunkPos;
 
     private void Awake() {
-        chunks = new Dictionary<ChunkId, Chunk>();
-        workState = new WorkState();
-        chunksToProcess = new List<Chunk>();
+        for (int i = 0; i < MAX_LOD; i++) {
+            chunks[i] = new Dictionary<ChunkId, Chunk>();
+        }
     }
 
     private void Update() {
-        UnloadChunk();
-        LoadExistingChunks();
-        InitNewChunks();
-        GetChunksToProcess();
-        ProcessChunks();
+        if (!ChunkId.FromWorldCoord(player.position).Equals(playerChunkPos)) {
+            UnloadChunks();
+            BuildOctTree();
+            InitNewChunks();
+            ProcessChunks();
+            playerChunkPos = ChunkId.FromWorldCoord(player.position);
+        }
     }
 
-    private void GetChunksToProcess() {
-        switch (workState.workState) {
-            case WorkState.FILL: 
-                foreach (Chunk chunk in chunks.Values) {
-                    if (!chunk.hasDataGenerated)
-                        chunksToProcess.Add(chunk);
-                }
-                break;
-            case WorkState.MESH:
-                foreach (Chunk chunk in chunks.Values) {
-                    if (chunk.hasDataGenerated && (chunk.hasChanged || !chunk.hasMeshGenerated)) {
-                        chunksToProcess.Add(chunk);
-                    }
-                }
-                break;
-            case WorkState.BAKE:
-                foreach (Chunk chunk in chunks.Values) {
-                    if (chunk.hasMeshGenerated && !chunk.hasColliderBaked) {
-                        chunksToProcess.Add(chunk);
-                    }
-                }
-                break;
+    private void UnloadChunks() {
+        foreach (OctTreeNode node in octTree.activeNodes) {
+            chunks[node.lod][node.id].Unload();
+        }
+    }
+
+    private void BuildOctTree() {
+        octTree = new OctTree(MAX_LOD, player.transform.position);
+    }
+
+    private void InitNewChunks() {
+        foreach (OctTreeNode node in octTree.activeNodes) {
+            if (chunks[node.lod].ContainsKey(node.id)) {
+                chunks[node.lod][node.id].Load();
+            } else {
+                GameObject chunkGameObject = Instantiate(chunkPrefab, node.id.ToWorldCoord(), Quaternion.identity);
+                chunks[node.lod].Add(node.id, new Chunk(node.id, chunkGameObject, node.lod));
+            }
         }
     }
 
     private void ProcessChunks() {
-        switch (workState.workState) {
-            case WorkState.FILL:
-                VoxelDataController.GenerateDataForChunks(chunksToProcess);
-                break;
-            case WorkState.MESH:
-                VoxelDataController.GenerateMeshForChunks(chunksToProcess, GetPlayerChunkCoord());
-                break;
-            case WorkState.BAKE:
-                VoxelDataController.BakeColliderForChunks(chunksToProcess);
-                break;
+        List<Chunk> chunksToProcess = new List<Chunk>();
+        foreach (OctTreeNode node in octTree.activeNodes) {
+            chunksToProcess.Add(chunks[node.lod][node.id]);
         }
-        workState.NextInLoop();
-        chunksToProcess.Clear();
+        VoxelDataController.GenerateDataForChunks(chunksToProcess);
+        VoxelDataController.GenerateMeshForChunks(chunksToProcess);
     }
 
-    private void LoadExistingChunks() {
-        ChunkId playerChunkCoord = GetPlayerChunkCoord();
-        foreach (ChunkId chunk in chunks.Keys) {
-            if (Utils.Magnitude(chunk.id - playerChunkCoord.id) <= WorldSettings.RenderDistanceInChunks) {
-                chunks[chunk].Load();
-            }
-        }
-    }
-
-    private void InitNewChunks() {
-        ChunkId playerChunkCoord = GetPlayerChunkCoord();
-        int renderDst = WorldSettings.RenderDistanceInChunks;
-        for (int x = -renderDst; x <= renderDst; x++) {
-            for (int y = -renderDst; y <= renderDst; y++) {
-                for (int z = -renderDst; z <= renderDst; z++) {
-                    ChunkId newChunk = new ChunkId(new int3(x, y, z) + playerChunkCoord.id);
-                    if (newChunk[1] < -WorldSettings.WorldDepthInChunks || newChunk[1] > WorldSettings.WorldHeightInChunks)
-                        continue;
-                    if (!chunks.ContainsKey(newChunk) && Utils.Magnitude(newChunk.id - playerChunkCoord.id) <= WorldSettings.RenderDistanceInChunks) {
-                        GameObject chunkGameObject = Instantiate(chunkPrefab, newChunk.ToWorldCoord(), Quaternion.identity);
-                        Chunk chunk = new Chunk(newChunk, chunkGameObject);
-                        chunks.Add(newChunk, chunk);
-                    }
-                }
-            }
-        }
-    }
-
-    private void UnloadChunk() {
-        ChunkId playerChunkCoord = GetPlayerChunkCoord();
-        foreach (ChunkId chunk in chunks.Keys) {
-            if (Utils.Magnitude(chunk.id - playerChunkCoord.id) > WorldSettings.RenderDistanceInChunks) {
-                chunks[chunk].Unload();
-            }
-        }
-    }
-
-    private ChunkId GetPlayerChunkCoord() {
-        return new ChunkId((int3)math.floor((float3)player.position / ((float3)WorldSettings.chunkDimension * WorldSettings.voxelSize)));
+    private void OnApplicationQuit() {
     }
 }

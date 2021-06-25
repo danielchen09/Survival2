@@ -1,9 +1,12 @@
 ﻿using Unity.Collections;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
 public class Chunk {
     public ChunkId id;
+    public int lod;
+
     public GameObject chunkGameObject;
     public MeshFilter meshFilter;
     public MeshCollider meshCollider;
@@ -17,14 +20,15 @@ public class Chunk {
 
     private GameObject[] treePrefabs;
 
-    public int minScale = -1;
-
-    public Chunk(ChunkId id, GameObject chunkGameObject) {
+    public Chunk(ChunkId id, GameObject chunkGameObject, int lod) {
         this.id = id;
+        this.lod = lod;
+
         this.chunkGameObject = chunkGameObject;
-        chunkGameObject.name = $"Chunk({id.id.x}, {id.id.y}, {id.id.z})";
+        chunkGameObject.name = $"Chunk({id.pos.x}, {id.pos.y}, {id.pos.z})";
         this.meshFilter = chunkGameObject.GetComponent<MeshFilter>();
         this.meshCollider = chunkGameObject.GetComponent<MeshCollider>();
+        this.chunkGameObject.GetComponent<ChunkInstance>().chunk = this;
     }
 
     public void SetMeshData(int vertexCount, NativeArray<VertexData> vertices, NativeArray<ushort> triangles) {
