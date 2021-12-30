@@ -6,6 +6,7 @@ using System.Threading;
 public abstract class ThreadedTask {
     private bool isDone = false;
     private object handle = new object();
+    private Thread thread = null;
 
     public bool IsDone {
         get {
@@ -22,6 +23,11 @@ public abstract class ThreadedTask {
         }
     }
 
+    public ThreadedTask Start() {
+        thread = new Thread(Run);
+        thread.Start();
+        return this;
+    }
     public abstract void ThreadFunction();
     public void Run() {
         ThreadFunction();

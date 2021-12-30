@@ -4,12 +4,14 @@ using UnityEngine;
 using Unity.Mathematics;
 
 public class VoxelDataGenerationTask : ThreadedTask {
-    public VoxelData[] terrainData;
+    private VoxelData[] terrainData;
+    public Chunk chunk;
+
     public bool hasSurface;
-    private Chunk chunk;
 
     public VoxelDataGenerationTask(Chunk chunk) {
         this.chunk = chunk;
+        this.terrainData = new VoxelData[WorldSettings.chunkDataLength];
     }
 
 
@@ -73,5 +75,16 @@ public class VoxelDataGenerationTask : ThreadedTask {
 
     public override void OnFinish() {
         chunk.hasDataGenerated = true;
+        GameManager.instance.voxelDataController.terrainData[chunk.id] = terrainData;
+    }
+
+    public override int GetHashCode() {
+        return chunk.GetHashCode();
+    }
+
+    public override bool Equals(object obj) {
+        if (obj.GetType() != this.GetType())
+            return false;
+        return ((VoxelDataGenerationTask)obj).chunk.Equals(chunk);
     }
 }

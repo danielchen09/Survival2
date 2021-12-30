@@ -112,6 +112,7 @@
     <Compile Include="Assets\Scripts\WorldGeneration\Helpers\ThreadedTask.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\Voxel\Jobs\VoxelDataGenerationTask.cs" />
     <Compile Include="Assets\Scripts\WorldGeneration\MeshGeneration\Jobs\MarchingCubesTask.cs" />
+    <Compile Include="Assets\Scripts\WorldGeneration\MeshGeneration\Jobs\BakeColliderTask.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\TextMesh Pro\Shaders\TMPro.cginc" />

@@ -1,4 +1,5 @@
-﻿using Unity.Collections;
+﻿using System.Collections.Generic;
+using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -32,10 +33,10 @@ public class Chunk {
         this.grassSurface = chunkGameObject.transform.GetChild(0).gameObject;
     }
 
-    public void SetMeshData(NativeArray<VertexData> vertices, NativeArray<ushort> triangles, NativeArray<ushort> grassTriangles) {
+    public void SetMeshData(List<VertexData> vertices, List<ushort> triangles, List<ushort> grassTriangles) {
         mesh = GenerateMesh(vertices, triangles);
         this.meshFilter.mesh = mesh;
-        if (grassTriangles.Length > 0) {
+        if (grassTriangles.Count > 0) {
             Mesh grassMesh = GenerateMesh(vertices, grassTriangles);
             this.grassSurface.GetComponent<MeshFilter>().mesh = grassMesh;
             this.grassSurface.SetActive(true);
@@ -43,21 +44,21 @@ public class Chunk {
         this.hasMeshGenerated = true;
     }
 
-    public Mesh GenerateMesh(NativeArray<VertexData> vertices, NativeArray<ushort> triangles) {
+    public Mesh GenerateMesh(List<VertexData> vertices, List<ushort> triangles) {
         Mesh mesh = new Mesh();
         SubMeshDescriptor subMesh = new SubMeshDescriptor();
 
-        mesh.SetVertexBufferParams(vertices.Length, VertexData.bufferMemoryLayout);
-        mesh.SetIndexBufferParams(vertices.Length, IndexFormat.UInt16);
+        mesh.SetVertexBufferParams(vertices.Count, VertexData.bufferMemoryLayout);
+        mesh.SetIndexBufferParams(vertices.Count, IndexFormat.UInt16);
 
-        mesh.SetVertexBufferData(vertices, 0, 0, vertices.Length, 0, MeshUpdateFlags.DontValidateIndices);
+        mesh.SetVertexBufferData(vertices, 0, 0, vertices.Count, 0, MeshUpdateFlags.DontValidateIndices);
         mesh.SetTriangles(triangles.ToArray(), 0);
         mesh.subMeshCount = 1;
-        subMesh.indexCount = triangles.Length;
+        subMesh.indexCount = triangles.Count;
         subMesh.topology = MeshTopology.Triangles;
         mesh.SetSubMesh(0, subMesh);
-        Vector2[] uvs = new Vector2[vertices.Length];
-        for (int i = 0; i < vertices.Length; i++) {
+        Vector2[] uvs = new Vector2[vertices.Count];
+        for (int i = 0; i < vertices.Count; i++) {
             uvs[i] = new Vector2(vertices[i].position.x / (WorldSettings.chunkDimension.x - 1) / WorldSettings.voxelSize, vertices[i].position.z / (WorldSettings.chunkDimension.z - 1) / WorldSettings.voxelSize);
         }
         mesh.uv = uvs;
@@ -76,5 +77,9 @@ public class Chunk {
 
     public void Unload() {
         chunkGameObject.SetActive(false);
+    }
+
+    public override int GetHashCode() {
+        return id.GetHashCode();
     }
 }

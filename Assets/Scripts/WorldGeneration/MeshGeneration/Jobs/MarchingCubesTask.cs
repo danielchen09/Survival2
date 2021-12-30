@@ -5,7 +5,7 @@ using Unity.Mathematics;
 
 public class MarchingCubesTask : ThreadedTask {
     private VoxelData[] terrainData;
-    private Chunk chunk;
+    public Chunk chunk;
 
     public List<VertexData> vertexData;
     public List<ushort> triangles;
@@ -14,6 +14,9 @@ public class MarchingCubesTask : ThreadedTask {
     public MarchingCubesTask(VoxelData[] terrainData, Chunk chunk) {
         this.terrainData = terrainData;
         this.chunk = chunk;
+        this.vertexData = new List<VertexData>();
+        this.triangles = new List<ushort>();
+        this.grassMesh = new List<ushort>();
     }
 
     public override void ThreadFunction() {
@@ -122,7 +125,18 @@ public class MarchingCubesTask : ThreadedTask {
     }
 
     public override void OnFinish() {
+        chunk.SetMeshData(vertexData, triangles, grassMesh);
         chunk.hasChanged = false;
         chunk.hasMeshGenerated = true;
+    }
+
+    public override int GetHashCode() {
+        return chunk.GetHashCode();
+    }
+
+    public override bool Equals(object obj) {
+        if (obj.GetType() != this.GetType())
+            return false;
+        return ((MarchingCubesTask)obj).chunk.Equals(chunk);
     }
 }

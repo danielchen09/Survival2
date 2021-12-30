@@ -30,7 +30,7 @@ public struct WorldSettings {
     public static readonly float isoLevel = 0;
 
     // player settings
-    public static readonly int RenderDistanceInChunks = 8;
+    public static readonly int RenderDistanceInChunks = 5;
     public static float3 RenderDistance {
         get => RenderDistanceInChunks * (float3)chunkDimension * voxelSize;
     }

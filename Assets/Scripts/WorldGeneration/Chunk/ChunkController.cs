@@ -12,13 +12,19 @@ public class ChunkController : MonoBehaviour {
     public Transform player;
 
     public WorkState workState;
-    private List<Chunk> chunksToProcess;
+    private Queue<ThreadedTask> pendingTasks;
+    private HashSet<ThreadedTask> pendingTasksIndex;
+    private List<ThreadedTask> runningThreads;
+    private int maxRunningThreads;
 
     private void Awake() {
         chunks = new Dictionary<ChunkId, Chunk>();
         workState = new WorkState();
-        chunksToProcess = new List<Chunk>();
+        pendingTasks = new Queue<ThreadedTask>();
+        pendingTasksIndex = new HashSet<ThreadedTask>();
+        runningThreads = new List<ThreadedTask>();
         staticEntitySpawner = GetComponent<StaticEntityManager>();
+        maxRunningThreads = SystemInfo.processorCount - 4;
     }
 
     private void Update() {
@@ -30,54 +36,37 @@ public class ChunkController : MonoBehaviour {
     }
 
     private void GetChunksToProcess() {
-        switch (workState.workState) {
-            case WorkState.FILL: 
-                foreach (Chunk chunk in chunks.Values) {
-                    if (!chunk.hasDataGenerated)
-                        chunksToProcess.Add(chunk);
-                }
-                break;
-            case WorkState.MESH:
-                foreach (Chunk chunk in chunks.Values) {
-                    if (chunk.hasDataGenerated && (chunk.hasChanged || !chunk.hasMeshGenerated)) {
-                        chunksToProcess.Add(chunk);
-                    }
-                }
-                break;
-            case WorkState.BAKE:
-                foreach (Chunk chunk in chunks.Values) {
-                    if (chunk.hasMeshGenerated && !chunk.hasColliderBaked) {
-                        chunksToProcess.Add(chunk);
-                    }
-                }
-                break;
-            case WorkState.SPAWN:
-                foreach (Chunk chunk in chunks.Values) {
-                    if (chunk.hasSurface && !chunk.hasEntitiesSpawned) {
-                        chunksToProcess.Add(chunk);
-                    }
-                }
-                break;
+        foreach (Chunk chunk in chunks.Values) {
+            ThreadedTask task;
+            if (!chunk.hasDataGenerated)
+                task = new VoxelDataGenerationTask(chunk);
+            else if (chunk.hasDataGenerated && (chunk.hasChanged || !chunk.hasMeshGenerated))
+                task = new MarchingCubesTask(GameManager.instance.voxelDataController.terrainData[chunk.id], chunk);
+            else if (chunk.hasMeshGenerated && !chunk.hasColliderBaked)
+                task = new BakeColliderTask(chunk);
+            else continue;
+
+            if (pendingTasksIndex.Contains(task))
+                continue;
+            pendingTasksIndex.Add(task);
+            pendingTasks.Enqueue(task);
         }
+        while (runningThreads.Count < maxRunningThreads && pendingTasks.Count > 0) {
+            ThreadedTask task = pendingTasks.Dequeue();
+            pendingTasksIndex.Remove(task);
+            runningThreads.Add(task.Start());
+        }
+        Debug.Log(pendingTasks.Count);
     }
 
     private void ProcessChunks() {
-        switch (workState.workState) {
-            case WorkState.FILL:
-                GameManager.instance.voxelDataController.GenerateDataForChunks(chunksToProcess);
-                break;
-            case WorkState.MESH:
-                GameManager.instance.voxelDataController.GenerateMeshForChunks(chunksToProcess, GetPlayerChunkCoord());
-                break;
-            case WorkState.BAKE:
-                GameManager.instance.voxelDataController.BakeColliderForChunks(chunksToProcess);
-                break;
-            case WorkState.SPAWN:
-                staticEntitySpawner.Spawn(chunksToProcess);
-                break;
+        for (int i = runningThreads.Count - 1; i >= 0; i--) {
+            ThreadedTask task = runningThreads[i];
+            if (!task.IsDone)
+                continue;
+            task.OnFinish();
+            runningThreads.RemoveAt(i);
         }
-        workState.NextInLoop();
-        chunksToProcess.Clear();
     }
 
     private void LoadExistingChunks() {
@@ -100,6 +89,7 @@ public class ChunkController : MonoBehaviour {
                         continue;
                     if (!chunks.ContainsKey(newChunk) && Utils.Magnitude(newChunk.pos - playerChunkCoord.pos) <= WorldSettings.RenderDistanceInChunks) {
                         GameObject chunkGameObject = Instantiate(chunkPrefab, newChunk.ToWorldCoord(), Quaternion.identity, chunkHolder);
+                        chunkGameObject.SetActive(false);
                         Chunk chunk = new Chunk(newChunk, chunkGameObject);
                         chunks.Add(newChunk, chunk);
                     }
