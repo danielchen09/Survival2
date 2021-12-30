@@ -1,23 +1,23 @@
 ﻿using Unity.Mathematics;
 
 public struct ChunkId {
-    public int3 id;
+    public int3 pos;
 
     public int this[int index] {
-        get => id[index];
-        set => id[index] = value;
+        get => pos[index];
+        set => pos[index] = value;
     }
 
     public ChunkId(int3 id) {
-        this.id = id;
+        this.pos = id;
     }
 
     public ChunkId(int x, int y, int z) {
-        this.id = new int3(x, y, z);
+        this.pos = new int3(x, y, z);
     }
 
     public int3 ToVoxelCoord() {
-        return id * (WorldSettings.chunkDimension - new int3(1, 1, 1));
+        return pos * (WorldSettings.chunkDimension - new int3(1, 1, 1));
     }
 
     public float3 ToWorldCoord() {
@@ -29,15 +29,19 @@ public struct ChunkId {
     }
 
     public static ChunkId FromWorldCoord(float3 coord) {
-        return new ChunkId((int3)math.floor(coord / (float3)WorldSettings.chunkDimension / WorldSettings.voxelSize));
+        return new ChunkId((int3)math.floor(coord / (float3)(WorldSettings.chunkDimension - 1) / WorldSettings.voxelSize));
+    }
+
+    public ChunkId Offset(int3 offset) {
+        return new ChunkId(pos + offset);
     }
 
     public override bool Equals(object obj) {
         ChunkId other = (ChunkId)obj;
-        return id.Equals(other.id);
+        return pos.Equals(other.pos);
     }
 
     public override int GetHashCode() {
-        return id.GetHashCode();
+        return pos.GetHashCode();
     }
 }

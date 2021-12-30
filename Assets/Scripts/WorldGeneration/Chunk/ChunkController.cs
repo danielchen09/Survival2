@@ -5,7 +5,9 @@ using UnityEngine;
 public class ChunkController : MonoBehaviour {
     public static Dictionary<ChunkId, Chunk> chunks;
     public GameObject chunkPrefab;
-    public GameObject[] treePrefabs;
+    public Transform chunkHolder;
+
+    public StaticEntityManager staticEntitySpawner;
 
     public Transform player;
 
@@ -16,6 +18,7 @@ public class ChunkController : MonoBehaviour {
         chunks = new Dictionary<ChunkId, Chunk>();
         workState = new WorkState();
         chunksToProcess = new List<Chunk>();
+        staticEntitySpawner = GetComponent<StaticEntityManager>();
     }
 
     private void Update() {
@@ -48,19 +51,29 @@ public class ChunkController : MonoBehaviour {
                     }
                 }
                 break;
+            case WorkState.SPAWN:
+                foreach (Chunk chunk in chunks.Values) {
+                    if (chunk.hasSurface && !chunk.hasEntitiesSpawned) {
+                        chunksToProcess.Add(chunk);
+                    }
+                }
+                break;
         }
     }
 
     private void ProcessChunks() {
         switch (workState.workState) {
             case WorkState.FILL:
-                VoxelDataController.GenerateDataForChunks(chunksToProcess);
+                GameManager.instance.voxelDataController.GenerateDataForChunks(chunksToProcess);
                 break;
             case WorkState.MESH:
-                VoxelDataController.GenerateMeshForChunks(chunksToProcess, GetPlayerChunkCoord());
+                GameManager.instance.voxelDataController.GenerateMeshForChunks(chunksToProcess, GetPlayerChunkCoord());
                 break;
             case WorkState.BAKE:
-                VoxelDataController.BakeColliderForChunks(chunksToProcess);
+                GameManager.instance.voxelDataController.BakeColliderForChunks(chunksToProcess);
+                break;
+            case WorkState.SPAWN:
+                staticEntitySpawner.Spawn(chunksToProcess);
                 break;
         }
         workState.NextInLoop();
@@ -70,7 +83,7 @@ public class ChunkController : MonoBehaviour {
     private void LoadExistingChunks() {
         ChunkId playerChunkCoord = GetPlayerChunkCoord();
         foreach (ChunkId chunk in chunks.Keys) {
-            if (Utils.Magnitude(chunk.id - playerChunkCoord.id) <= WorldSettings.RenderDistanceInChunks) {
+            if (Utils.Magnitude(chunk.pos - playerChunkCoord.pos) <= WorldSettings.RenderDistanceInChunks) {
                 chunks[chunk].Load();
             }
         }
@@ -82,11 +95,11 @@ public class ChunkController : MonoBehaviour {
         for (int x = -renderDst; x <= renderDst; x++) {
             for (int y = -renderDst; y <= renderDst; y++) {
                 for (int z = -renderDst; z <= renderDst; z++) {
-                    ChunkId newChunk = new ChunkId(new int3(x, y, z) + playerChunkCoord.id);
+                    ChunkId newChunk = new ChunkId(new int3(x, y, z) + playerChunkCoord.pos);
                     if (newChunk[1] < -WorldSettings.WorldDepthInChunks || newChunk[1] > WorldSettings.WorldHeightInChunks)
                         continue;
-                    if (!chunks.ContainsKey(newChunk) && Utils.Magnitude(newChunk.id - playerChunkCoord.id) <= WorldSettings.RenderDistanceInChunks) {
-                        GameObject chunkGameObject = Instantiate(chunkPrefab, newChunk.ToWorldCoord(), Quaternion.identity);
+                    if (!chunks.ContainsKey(newChunk) && Utils.Magnitude(newChunk.pos - playerChunkCoord.pos) <= WorldSettings.RenderDistanceInChunks) {
+                        GameObject chunkGameObject = Instantiate(chunkPrefab, newChunk.ToWorldCoord(), Quaternion.identity, chunkHolder);
                         Chunk chunk = new Chunk(newChunk, chunkGameObject);
                         chunks.Add(newChunk, chunk);
                     }
@@ -98,7 +111,7 @@ public class ChunkController : MonoBehaviour {
     private void UnloadChunk() {
         ChunkId playerChunkCoord = GetPlayerChunkCoord();
         foreach (ChunkId chunk in chunks.Keys) {
-            if (Utils.Magnitude(chunk.id - playerChunkCoord.id) > WorldSettings.RenderDistanceInChunks) {
+            if (Utils.Magnitude(chunk.pos - playerChunkCoord.pos) > WorldSettings.RenderDistanceInChunks) {
                 chunks[chunk].Unload();
             }
         }

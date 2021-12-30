@@ -3,26 +3,34 @@ using UnityEngine;
 
 public class Utils {
     public static int CoordToIndex(int3 coord) {
-        return coord.z * WorldSettings.chunkDimension.x * WorldSettings.chunkDimension.y +
-            coord.y * WorldSettings.chunkDimension.x +
+        return CoordToIndex(coord, WorldSettings.chunkDimension);
+    }
+
+    public static int CoordToIndex(int3 coord, int3 dimension) {
+        return coord.z * dimension.x * dimension.y +
+            coord.y * dimension.x +
             coord.x;
     }
 
-    public static int CoordToIndex2D(int2 coord) {
-        return coord.y * WorldSettings.chunkDimension.x + coord.x;
+    public static int CoordToIndex2D(int2 coord, int2 dimension) {
+        return coord.y * dimension.x + coord.x;
     }
 
     public static int3 IndexToCoord(int index) {
-        return new int3(
-            index % WorldSettings.chunkDimension.x,
-            (index / WorldSettings.chunkDimension.x) % WorldSettings.chunkDimension.y,
-            index / (WorldSettings.chunkDimension.x * WorldSettings.chunkDimension.z));
+        return IndexToCoord(index, WorldSettings.chunkDimension);
     }
 
-    public static int2 IndexToCoord2D(int index) {
+    public static int3 IndexToCoord(int index, int3 dimension) {
+        return new int3(
+            index % dimension.x,
+            (index / dimension.x) % dimension.y,
+            index / (dimension.x * dimension.z));
+    }
+
+    public static int2 IndextoCoord2D(int index, int2 dimension) {
         return new int2(
-            index % WorldSettings.chunkDimension.x,
-            index / WorldSettings.chunkDimension.x);
+            index % dimension.x,
+            index / dimension.x);
     }
 
     public static float Round(float f, float m) {
@@ -43,5 +51,8 @@ public class Utils {
 
     public static float Magnitude(float3 v) {
         return math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+    }
+    public static int Mod(int x, int m) {
+        return (x % m + m) % m;
     }
 }

@@ -5,13 +5,25 @@ using Unity.Mathematics;
 using UnityEngine;
 
 [BurstCompile]
-public struct VoxelDataGeneratorJob : IJob {
-    public ChunkId chunkId;
+public struct VoxelDataGeneratorJob : IJobParallelFor {
+    [NativeDisableParallelForRestriction]
+    public NativeArray<VoxelData> terrainData;
+    [NativeDisableParallelForRestriction]
+    public NativeArray<bool> hasSurface;
+    public readonly NativeHashMap<int3, int> dataPos;
+    public NativeArray<ChunkId> chunkIds;
 
-    public NativeArray<VoxelData> voxelData;
-    public bool hasSurface;
+    public VoxelDataGeneratorJob(NativeArray<VoxelData> terrainData, NativeArray<bool> hasSurface, NativeHashMap<int3, int> dataPos, NativeArray<ChunkId> chunkIds) {
+        this.terrainData = terrainData;
+        this.hasSurface = hasSurface;
+        this.dataPos = dataPos;
+        this.chunkIds = chunkIds;
+    }
 
-    public void Execute() {
+    public void Execute(int index) {
+        ChunkId chunkId = chunkIds[index];
+        int startIndex = dataPos[chunkId.pos];
+        hasSurface[0] = false;
         for (int x = 0; x < WorldSettings.chunkDimension.x; x++) {
             for (int z = 0; z < WorldSettings.chunkDimension.z; z++) {
                 float3 chunkCoord = chunkId.ToWorldCoord();
@@ -23,23 +35,31 @@ public struct VoxelDataGeneratorJob : IJob {
                     lacunarity = 1f,
                     persistence = 1f
                 });
-
                 float terrainHeight = NoiseGenerator.GeneratePositive(terrainCoord, new NoiseSettings() {
                     octaves = 4,
                     frequency = noise2d * 0.01f,
                     lacunarity = 2f,
                     persistence = 0.4f
                 }) * noise2d * (WorldSettings.WorldHeight - WorldSettings.voxelSize) + WorldSettings.voxelSize;
+                terrainHeight = terrainHeight + 1 / (WorldSettings.WorldHeight - terrainHeight);
 
                 Material material = MaterialController.stoneType;
                 for (int y = 0; y < WorldSettings.chunkDimension.y; y++) {
+                    float3 coord = new float3(x, y, z) * WorldSettings.voxelSize + chunkCoord;
                     float height = y * WorldSettings.voxelSize + chunkCoord.y;
 
                     float density = (terrainHeight - height) / WorldSettings.WorldHeight;
+                    density += NoiseGenerator.Generate(coord, new NoiseSettings() {
+                        octaves = 4,
+                        frequency = 0.01f,
+                        lacunarity = 2f,
+                        persistence = 0.5f
+                    }) * noise2d * 0.1f;
+
                     if (density > 0 && density < WorldSettings.voxelSize / WorldSettings.WorldHeight * 2) {
                         // surface
-                        material = MaterialController.grassType;
-                        hasSurface = true;
+                        material = BiomeController.GetMaterialForBiome(terrainCoord);
+                        hasSurface[0] = true;
                     }
                     if (height > WorldSettings.WorldHeight * 0.3f + NoiseGenerator.Snoise(terrainCoord) * WorldSettings.voxelSize * 10)
                         material = MaterialController.stoneType;
@@ -54,17 +74,14 @@ public struct VoxelDataGeneratorJob : IJob {
                             persistence = 0.5f
                         }) + math.clamp(0.45f - math.abs(height) / WorldSettings.WorldDepth, 0.2f, 0.45f);
                     }
-                    voxelData[Utils.CoordToIndex(new int3(x, y, z))] = new VoxelData(math.clamp(density, -1, 1), material);
+                    terrainData[startIndex + Utils.CoordToIndex(new int3(x, y, z))] = new VoxelData(math.clamp(density, -1, 1), material);
                 }
             }
         }
     }
 
-    private void SetMaterial(int index, Material material) {
-        voxelData[index] = new VoxelData(voxelData[index].density, material);
-    }
-
     public void Dispose() {
-        this.voxelData.Dispose();
+        this.hasSurface.Dispose();
+        this.chunkIds.Dispose();
     }
 }

@@ -6,89 +6,104 @@ using Unity.Mathematics;
 using UnityEngine;
 
 public class VoxelDataController {
-    public static Dictionary<ChunkId, VoxelData[]> voxelData = new Dictionary<ChunkId, VoxelData[]>();
+    public NativeArray<VoxelData> terrainData;
+    private int dataEndPos;
+    public NativeHashMap<int3, int> dataPos;
 
-    public static void Deform(float3 hitPoint, float val) {
+    public VoxelDataController() {
+        this.dataEndPos = 0;
+        this.terrainData = new NativeArray<VoxelData>(WorldSettings.chunkDataLength, Allocator.Persistent);
+        this.dataPos = new NativeHashMap<int3, int>(2000, Allocator.Persistent);
+    }
+
+    public void Deform(float3 hitPoint, float val) {
         ChunkId chunkHit = ChunkId.FromWorldCoord(hitPoint);
         VoxelId voxelHit = VoxelId.FromWorldCoord(hitPoint, chunkHit);
         List<VoxelId> neighbors = voxelHit.GetNeighbors(WorldSettings.ModifyVoxelRadius);
         foreach (VoxelId neighbor in neighbors) {
             ModifyVoxelData(chunkHit, neighbor, (VoxelData original) => new VoxelData() {
-                density = Mathf.Clamp(original.density + (val > 0 ? val / 30 : val) * (10 - 9 * Mathf.Pow(original.density, 2)), -1, 1),
+                density = Mathf.Clamp(original.density + val * (10 - 9 * Mathf.Pow(original.density, 2)), -1, 1),
                 material = original.material
             });
         }
     }
 
-    public static bool TryGetVoxelData(ChunkId chunkId, VoxelId voxelId, out VoxelData result) {
-        result = new VoxelData();
-        ChunkId targetChunk = new ChunkId(chunkId.id + voxelId.ChunkOffset());
-        if (!voxelData.ContainsKey(targetChunk))
-            return false;
-        VoxelId targetVoxel = voxelId.Translate(chunkId, targetChunk);
-        result = voxelData[targetChunk][Utils.CoordToIndex(targetVoxel.id)];
-        return true;
-    }
+    //public static bool TryGetVoxelData(ChunkId chunkId, VoxelId voxelId, out VoxelData result) {
+    //    result = new VoxelData();
+    //    ChunkId targetChunk = new ChunkId(chunkId.pos + voxelId.ChunkOffset());
+    //    if (!voxelData.ContainsKey(targetChunk))
+    //        return false;
+    //    VoxelId targetVoxel = voxelId.Translate(chunkId, targetChunk);
+    //    result = voxelData[targetChunk][Utils.CoordToIndex(targetVoxel.id)];
+    //    return true;
+    //}
 
-    public static void ModifyVoxelData(ChunkId chunkId, VoxelId voxelId, Func<VoxelData, VoxelData> action) {
-        ChunkId chunkModified = new ChunkId(chunkId.id + voxelId.ChunkOffset());
-        if (!voxelData.ContainsKey(chunkModified))
+    public void ModifyVoxelData(ChunkId chunkId, VoxelId voxelId, Func<VoxelData, VoxelData> action) {
+        ChunkId chunkModified = new ChunkId(chunkId.pos + voxelId.ChunkOffset());
+        if (!dataPos.ContainsKey(chunkModified.pos))
             return;
         VoxelId modifiedVoxel = voxelId.Translate(chunkId, chunkModified);
         ModifyVoxelData(chunkModified, Utils.CoordToIndex(modifiedVoxel.id), action);
         List<ChunkId> overlappingChunks = modifiedVoxel.OverlappingChunks(chunkModified);
         foreach (ChunkId overlappingChunk in overlappingChunks) {
-            if (!voxelData.ContainsKey(overlappingChunk))
+            if (!dataPos.ContainsKey(overlappingChunk.pos))
                 continue;
             ModifyVoxelData(overlappingChunk, Utils.CoordToIndex(modifiedVoxel.Translate(chunkModified, overlappingChunk).id), action);
         }
     }
 
-    public static void ModifyVoxelData(ChunkId chunkId, int index, Func<VoxelData, VoxelData> action) {
-        voxelData[chunkId][index] = action.Invoke(voxelData[chunkId][index]);
-        ChunkController.chunks[chunkId].hasChanged = true;
-    }
-    public static void SetVoxelData(ChunkId chunkId, VoxelData[] newVoxelData) {
-        voxelData[chunkId] = newVoxelData;
+    public void ModifyVoxelData(ChunkId chunkId, int index, Func<VoxelData, VoxelData> action) {
+        terrainData[dataPos[chunkId.pos] + index] = action.Invoke(terrainData[dataPos[chunkId.pos] + index]);
         ChunkController.chunks[chunkId].hasChanged = true;
     }
 
-    public static void GenerateDataForChunks(List<Chunk> chunksToProcess) {
-        List<JobData<VoxelDataGeneratorJob>> jobDataList = new List<JobData<VoxelDataGeneratorJob>>();
+    public void GenerateDataForChunks(List<Chunk> chunksToProcess) {
+        List<ChunkId> chunkIds = new List<ChunkId>();
         foreach (Chunk chunk in chunksToProcess) {
-            VoxelDataGeneratorJob job = new VoxelDataGeneratorJob() {
-                chunkId = chunk.id,
-                voxelData = new NativeArray<VoxelData>(
-                    WorldSettings.chunkDimension.x * WorldSettings.chunkDimension.y * WorldSettings.chunkDimension.z, Allocator.TempJob)
-            };
-            jobDataList.Add(new JobData<VoxelDataGeneratorJob>(job, job.Schedule()));
-        }
-        for (int i = 0; i < chunksToProcess.Count; i++) {
-            Chunk chunk = chunksToProcess[i]; 
-            JobData<VoxelDataGeneratorJob> jobData = jobDataList[i];
-
-            jobData.handle.Complete();
-            if (voxelData.ContainsKey(chunk.id)) {
-                voxelData[chunk.id] = jobData.job.voxelData.ToArray();
-            } else {
-                voxelData.Add(chunk.id, jobData.job.voxelData.ToArray());
-            }
-            jobData.job.Dispose();
-
+            AddChunk(chunk);
+            chunkIds.Add(chunk.id);
             chunk.hasDataGenerated = true;
         }
+
+        VoxelDataGeneratorJob job = new VoxelDataGeneratorJob(
+            terrainData,
+            new NativeArray<bool>(1, Allocator.TempJob),
+            dataPos,
+            new NativeArray<ChunkId>(chunkIds.ToArray(), Allocator.TempJob)
+        );
+        JobHandle handle = job.Schedule(chunkIds.Count, 1);
+        handle.Complete();
+        job.Dispose();
     }
 
-    public static void GenerateMeshForChunks(List<Chunk> chunksToProcess, ChunkId playerChunkCoord) {
+    public void AddChunk(Chunk chunk) {
+        if (dataPos.ContainsKey(chunk.id.pos))
+            return;
+        if (dataEndPos >= terrainData.Length - 1)
+            ResizeArray();
+        this.dataPos[chunk.id.pos] = dataEndPos;
+        this.dataEndPos += WorldSettings.chunkDataLength;
+    }
+
+    private void ResizeArray() {
+        NativeArray<VoxelData> newTerrainData = new NativeArray<VoxelData>(this.terrainData.Length * 2, Allocator.Persistent);
+        NativeArray<VoxelData>.Copy(this.terrainData, newTerrainData, this.terrainData.Length);
+        this.terrainData.Dispose();
+        this.terrainData = newTerrainData;
+    }
+
+    public void GenerateMeshForChunks(List<Chunk> chunksToProcess, ChunkId playerChunkCoord) {
         List<JobData<MarchingCubeJob>> jobDataList = new List<JobData<MarchingCubeJob>>();
         foreach (Chunk chunk in chunksToProcess) {
             MarchingCubeJob job = new MarchingCubeJob() {
                 dimension = WorldSettings.chunkDimension,
                 voxelSize = WorldSettings.voxelSize,
-                voxelData = new NativeArray<VoxelData>(voxelData[chunk.id], Allocator.TempJob),
+                terrainData = terrainData,
                 vertexData = new NativeList<VertexData>(Allocator.TempJob),
                 triangles = new NativeList<ushort>(Allocator.TempJob),
-                chunkId = chunk.id
+                grassMesh = new NativeList<ushort>(Allocator.TempJob),
+                chunkId = chunk.id,
+                startIndex = dataPos[chunk.id.pos]
             };
             jobDataList.Add(new JobData<MarchingCubeJob>(job, job.Schedule()));
         }
@@ -100,7 +115,7 @@ public class VoxelDataController {
             JobData<MarchingCubeJob> jobData = jobDataList[i];
 
             jobData.handle.Complete();
-            chunk.SetMeshData(jobData.job.vertexData.Length, jobData.job.vertexData.AsArray(), jobData.job.triangles.AsArray());
+            chunk.SetMeshData(jobData.job.vertexData.AsArray(), jobData.job.triangles.AsArray(), jobData.job.grassMesh.AsArray());
             jobData.job.Dispose();
 
             chunk.hasChanged = false;
@@ -108,7 +123,7 @@ public class VoxelDataController {
         }
     }
 
-    public static void BakeColliderForChunks(List<Chunk> chunksToProcess) {
+    public void BakeColliderForChunks(List<Chunk> chunksToProcess) {
         NativeArray<int> meshIds = new NativeArray<int>(chunksToProcess.Count, Allocator.TempJob);
         for (int i = 0; i < chunksToProcess.Count; i++) {
             meshIds[i] = chunksToProcess[i].mesh.GetInstanceID();

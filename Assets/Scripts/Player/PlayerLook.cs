@@ -6,16 +6,13 @@ public class PlayerLook : MonoBehaviour {
 
     private GameObject player;
 
-    private bool lockCamera = false;
+    public bool lockCamera = false;
 
     private void Start() {
         player = GameObject.Find("Player");
     }
 
     void Update() {
-        if(Input.GetKeyDown(KeyCode.Z)) {
-            lockCamera = !lockCamera;
-        }
         if (!lockCamera) {
             if (Time.deltaTime > 0.05f)
                 return;
@@ -27,5 +24,11 @@ public class PlayerLook : MonoBehaviour {
 
             transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
         }
+    }
+
+    public void LockCamera(bool isLock) {
+        lockCamera = isLock;
+        Cursor.visible = lockCamera;
+        Cursor.lockState = lockCamera ? CursorLockMode.None : CursorLockMode.Locked;
     }
 }

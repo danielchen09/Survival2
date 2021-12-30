@@ -7,5 +7,14 @@ public enum MaterialType {
     STONE,
     GRASS,
     WATER,
-    DIRT
+    DIRT,
+    ICE,
+    PURPLE,
+    PINK,
+    SAND,
+    BLACK,
+    SNOW,
+    RED,
+    ORANGE,
+    BLUE
 }

@@ -1,24 +1,20 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Unity.Collections;
+using Unity.Jobs;
 using UnityEngine;
 
 public class TestScript : MonoBehaviour {
-
-    public MeshFilter meshFilter;
+    public NativeArray<int> a;
 
     void Start() {
-        meshFilter = GetComponent<MeshFilter>();
+    }
+}
 
-        Mesh mesh = new Mesh();
-        Vector3[] vertices = {
-            new Vector3(0, 0, 0),
-            new Vector3(0, 0, 1),
-            new Vector3(1, 0, 0),
-        };
-        mesh.vertices = vertices;
-        mesh.RecalculateBounds();
-        mesh.RecalculateNormals();
+public struct TestJob : IJob {
+    public NativeArray<int> a;
 
-        meshFilter.mesh = mesh;
+    public void Execute() {
+        a[0] = 2;
     }
 }

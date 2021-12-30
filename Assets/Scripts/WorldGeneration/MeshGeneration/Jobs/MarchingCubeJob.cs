@@ -13,12 +13,12 @@ public struct MarchingCubeJob : IJob {
     [ReadOnly]
     public float voxelSize;
 
+    public int startIndex;
     [ReadOnly]
-    public NativeArray<VoxelData> voxelData;
-    [NativeDisableParallelForRestriction]
+    public NativeArray<VoxelData> terrainData;
     public NativeList<VertexData> vertexData;
-    [NativeDisableParallelForRestriction]
     public NativeList<ushort> triangles;
+    public NativeList<ushort> grassMesh;
 
     [ReadOnly]
     public ChunkId chunkId;
@@ -31,7 +31,7 @@ public struct MarchingCubeJob : IJob {
 
                     int cubeIndex = 0;
                     for (int vertex = 0; vertex < 8; vertex++) {
-                        if (voxelData[VertexIndex(coord, vertex)].density < WorldSettings.isoLevel) {
+                        if (terrainData[startIndex + VertexIndex(coord, vertex)].density < WorldSettings.isoLevel) {
                             cubeIndex |= (1 << vertex);
                         }
                     }
@@ -50,8 +50,11 @@ public struct MarchingCubeJob : IJob {
 
                         float3 normal = math.normalize(math.cross(v2 - v1, v3 - v1));
 
-                        Color32 color = VoteColor(ChooseColor(coord, e1, v1), ChooseColor(coord, e2, v2), ChooseColor(coord, e3, v3));
-                        Color32 rcolor = RandomizeColor(color, 0.02f, new float3(x, y, z));
+                        VoxelData a1 = ChooseAttribute(coord, e1, v1);
+                        VoxelData a2 = ChooseAttribute(coord, e2, v2);
+                        VoxelData a3 = ChooseAttribute(coord, e3, v3);
+                        Color32 color = VoteColor(a1.material.color, a2.material.color, a3.material.color);
+                        bool CanSpawnGrass = VoteCanSpawnGrass(a1.material.canSpawnGrass, a2.material.canSpawnGrass, a3.material.canSpawnGrass);
 
                         vertexData.Add(new VertexData(v1, normal, color));
                         triangles.Add((ushort)(vertexData.Length - 1));
@@ -59,20 +62,15 @@ public struct MarchingCubeJob : IJob {
                         triangles.Add((ushort)(vertexData.Length - 1));
                         vertexData.Add(new VertexData(v3, normal, color));
                         triangles.Add((ushort)(vertexData.Length - 1));
+                        if (CanSpawnGrass) {
+                            grassMesh.Add((ushort)(vertexData.Length - 3));
+                            grassMesh.Add((ushort)(vertexData.Length - 2));
+                            grassMesh.Add((ushort)(vertexData.Length - 1));
+                        }
                     }
                 }
             }
         }
-    }
-
-    private Color32 RandomizeColor(Color32 color, float radius, float3 pos) {
-        pos = pos * voxelSize + chunkId.ToWorldCoord();
-        float phi = 2 * math.PI * NoiseGenerator.SnoisePositive(pos * 0.05f);
-        float theta = 2 * math.PI * NoiseGenerator.SnoisePositive(pos * 0.05f);
-        return Utils.Round(new Color(
-            radius * math.cos(phi) * math.sin(theta),
-            radius * math.sin(phi) * math.cos(theta),
-            radius * math.cos(theta)), radius / 3f) + color;
     }
 
     private Color32 VoteColor(Color32 c1, Color32 c2, Color32 c3) {
@@ -82,27 +80,20 @@ public struct MarchingCubeJob : IJob {
             return c3;
         return c1;
     }
-
-    private Color InterpolateColor(int3 coord, int edge, float3 edgePos) {
-        int neighbor1 = MarchingCubeTable.edgeNeighbors[edge * 2];
-        int neighbor2 = MarchingCubeTable.edgeNeighbors[edge * 2 + 1];
-
-        Color c1 = voxelData[VertexIndex(coord, neighbor1)].material.color;
-        Color c2 = voxelData[VertexIndex(coord, neighbor2)].material.color;
-
-        float3 p1 = VertexCoord(coord, neighbor1);
-        float3 p2 = VertexCoord(coord, neighbor2);
-
-        float ratio = Utils.Magnitude(edgePos - p1) / Utils.Magnitude(p2 - p1);
-        return c1 + (c2 - c1) * ratio;
+    private bool VoteCanSpawnGrass(bool b1, bool b2, bool b3) {
+        if (b1 == b2 || b1 == b3)
+            return b1;
+        if (b2 == b3)
+            return b3;
+        return b1;
     }
 
-    private Color32 ChooseColor(int3 coord, int edge, float3 edgePos) {
+    private VoxelData ChooseAttribute(int3 coord, int edge, float3 edgePos) {
         int neighbor1 = MarchingCubeTable.edgeNeighbors[edge * 2];
         int neighbor2 = MarchingCubeTable.edgeNeighbors[edge * 2 + 1];
 
-        Color32 c1 = voxelData[VertexIndex(coord, neighbor1)].material.color;
-        Color32 c2 = voxelData[VertexIndex(coord, neighbor2)].material.color;
+        VoxelData c1 = terrainData[startIndex + VertexIndex(coord, neighbor1)];
+        VoxelData c2 = terrainData[startIndex + VertexIndex(coord, neighbor2)];
 
         float3 p1 = VertexCoord(coord, neighbor1);
         float3 p2 = VertexCoord(coord, neighbor2);
@@ -114,8 +105,8 @@ public struct MarchingCubeJob : IJob {
         int neighbor1 = MarchingCubeTable.edgeNeighbors[edge * 2];
         int neighbor2 = MarchingCubeTable.edgeNeighbors[edge * 2 + 1];
 
-        float v1 = voxelData[VertexIndex(coord, neighbor1)].density;
-        float v2 = voxelData[VertexIndex(coord, neighbor2)].density;
+        float v1 = terrainData[startIndex + VertexIndex(coord, neighbor1)].density;
+        float v2 = terrainData[startIndex + VertexIndex(coord, neighbor2)].density;
 
         float3 p1 = VertexCoord(coord, neighbor1);
         float3 p2 = VertexCoord(coord, neighbor2);
@@ -138,8 +129,8 @@ public struct MarchingCubeJob : IJob {
     }
 
     public void Dispose() {
-        this.voxelData.Dispose();
         this.vertexData.Dispose();
         this.triangles.Dispose();
+        this.grassMesh.Dispose();
     }
 }

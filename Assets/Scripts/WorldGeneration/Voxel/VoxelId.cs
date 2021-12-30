@@ -20,7 +20,7 @@ public struct VoxelId {
 
         for (int b = 1; b <= 0b111; b++) {
             int changed = 0;
-            ChunkId newChunk = new ChunkId(originalChunk.id);
+            ChunkId newChunk = new ChunkId(originalChunk.pos);
             for (int i = 0; i < 3; i++) {
                 if ((b & (1 << i)) > 0) {
                     if (id[i] == 0) {
@@ -40,7 +40,7 @@ public struct VoxelId {
     }
 
     public VoxelId Translate(ChunkId originalChunk, ChunkId newChunk) {
-        int3 offset = newChunk.id - originalChunk.id;
+        int3 offset = newChunk.pos - originalChunk.pos;
         return new VoxelId(id - offset * (WorldSettings.chunkDimension - new int3(1, 1, 1)));
     }
 
@@ -56,7 +56,15 @@ public struct VoxelId {
         return false;
     }
 
+    public static bool IsBoundary(int3 coord) {
+        return new VoxelId(coord).IsBoundary();
+    }
+
     public int3 ChunkOffset() {
+        return ChunkOffset(id);
+    }
+
+    public static int3 ChunkOffset(int3 id) {
         return (int3)math.floor((float3)id / (float3)WorldSettings.chunkDimension);
     }
 
@@ -80,6 +88,10 @@ public struct VoxelId {
                 return false;
         }
         return true;
+    }
+
+    public static bool InChunk(int3 coord) {
+        return new VoxelId(coord).InChunk();
     }
 
     public static VoxelId FromWorldCoord(float3 coord, ChunkId chunk) {

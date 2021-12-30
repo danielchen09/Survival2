@@ -8,3 +8,8 @@ Logs/
 obj/
 
 Temp/
+*.dll
+*.csproj
+Builds/
+ProjectSettings/
+UserSettings/

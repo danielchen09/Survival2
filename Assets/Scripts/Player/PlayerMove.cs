@@ -37,7 +37,7 @@ public class PlayerMove : MonoBehaviour {
 
         if (!flying) {
             if (Input.GetButton("Fire3"))
-                move *= 3;
+                move *= 2;
 
             isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
             if (isGrounded && velocity.y < 0)

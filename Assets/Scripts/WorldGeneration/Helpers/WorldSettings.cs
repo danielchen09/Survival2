@@ -6,6 +6,9 @@ using UnityEngine;
 public struct WorldSettings {
     // chunk and voxel data
     public static readonly int3 chunkDimension = new int3(17, 17, 17); // how many vertices are in a chunk
+    public static int chunkDataLength {
+        get => chunkDimension.x * chunkDimension.y * chunkDimension.z;
+    }
     public static readonly float voxelSize = 1f; // distance between vertices
     public static readonly int WorldHeightInChunks = 8;
     public static float WorldHeight {
@@ -32,6 +35,6 @@ public struct WorldSettings {
         get => RenderDistanceInChunks * (float3)chunkDimension * voxelSize;
     }
     public static readonly int ModifyVoxelRadius = 1;
-    public static readonly float ReachDistance = 10f;
-    public static readonly float VoxelModifier = 0.01f;
+    public static readonly float ReachDistance = 100f;
+    public static readonly float VoxelModifier = 0.2f;
 }
