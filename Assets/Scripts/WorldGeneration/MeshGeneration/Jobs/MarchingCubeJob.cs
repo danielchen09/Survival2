@@ -111,9 +111,9 @@ public struct MarchingCubeJob : IJob {
         float3 p1 = VertexCoord(coord, neighbor1);
         float3 p2 = VertexCoord(coord, neighbor2);
 
-        if (math.abs(WorldSettings.isoLevel - v1) < 0.00001f)
+        if (math.abs(WorldSettings.isoLevel - v1) < 0.001f)
             return p1;
-        if (math.abs(WorldSettings.isoLevel - v2) < 0.00001f)
+        if (math.abs(WorldSettings.isoLevel - v2) < 0.001f)
             return p2;
         if (math.abs(v1 - v2) < 0.00001f)
             return p1;

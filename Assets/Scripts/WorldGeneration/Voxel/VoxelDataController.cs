@@ -57,7 +57,7 @@ public class VoxelDataController {
         ChunkController.chunks[chunkId].hasChanged = true;
     }
 
-    public void GenerateDataForChunks(List<Chunk> chunksToProcess) {
+    public List<JobData> GenerateDataForChunks(List<Chunk> chunksToProcess) {
         List<ChunkId> chunkIds = new List<ChunkId>();
         foreach (Chunk chunk in chunksToProcess) {
             AddChunk(chunk);
@@ -71,9 +71,11 @@ public class VoxelDataController {
             dataPos,
             new NativeArray<ChunkId>(chunkIds.ToArray(), Allocator.TempJob)
         );
-        JobHandle handle = job.Schedule(chunkIds.Count, 1);
-        handle.Complete();
-        job.Dispose();
+        List<JobData> jobDataList = new List<JobData>();
+        jobDataList.Add(new JobData(job.Schedule(chunkIds.Count, 1), () => {
+            job.Dispose();
+        }));
+        return jobDataList;
     }
 
     public void AddChunk(Chunk chunk) {
@@ -92,8 +94,8 @@ public class VoxelDataController {
         this.terrainData = newTerrainData;
     }
 
-    public void GenerateMeshForChunks(List<Chunk> chunksToProcess, ChunkId playerChunkCoord) {
-        List<JobData<MarchingCubeJob>> jobDataList = new List<JobData<MarchingCubeJob>>();
+    public List<JobData> GenerateMeshForChunks(List<Chunk> chunksToProcess, ChunkId playerChunkCoord) {
+        List<JobData> jobDataList = new List<JobData>();
         foreach (Chunk chunk in chunksToProcess) {
             MarchingCubeJob job = new MarchingCubeJob() {
                 dimension = WorldSettings.chunkDimension,
@@ -105,22 +107,15 @@ public class VoxelDataController {
                 chunkId = chunk.id,
                 startIndex = dataPos[chunk.id.pos]
             };
-            jobDataList.Add(new JobData<MarchingCubeJob>(job, job.Schedule()));
+            jobDataList.Add(new JobData(job.Schedule(), () => {
+                chunk.SetMeshData(job.vertexData.AsArray(), job.triangles.AsArray(), job.grassMesh.AsArray());
+                job.Dispose();
+
+                chunk.hasChanged = false;
+                chunk.hasColliderBaked = false;
+            }));
         }
-        for (int i = 0; i < chunksToProcess.Count; i++) {
-            if (jobDataList[i].noop)
-                continue;
-
-            Chunk chunk = chunksToProcess[i];
-            JobData<MarchingCubeJob> jobData = jobDataList[i];
-
-            jobData.handle.Complete();
-            chunk.SetMeshData(jobData.job.vertexData.AsArray(), jobData.job.triangles.AsArray(), jobData.job.grassMesh.AsArray());
-            jobData.job.Dispose();
-
-            chunk.hasChanged = false;
-            chunk.hasColliderBaked = false;
-        }
+        return jobDataList;
     }
 
     public void BakeColliderForChunks(List<Chunk> chunksToProcess) {

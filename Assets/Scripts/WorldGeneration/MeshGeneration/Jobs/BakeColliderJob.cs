@@ -10,4 +10,8 @@ public struct BakeColliderJob : IJobParallelFor {
     public void Execute(int index) {
         Physics.BakeMesh(meshIds[index], false);
     }
+
+    public void Dispose() {
+        this.meshIds.Dispose();
+    }
 }

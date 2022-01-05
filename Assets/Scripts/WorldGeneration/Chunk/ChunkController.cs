@@ -13,20 +13,30 @@ public class ChunkController : MonoBehaviour {
 
     public WorkState workState;
     private List<Chunk> chunksToProcess;
+    private List<JobData> runningJobs;
 
     private void Awake() {
         chunks = new Dictionary<ChunkId, Chunk>();
         workState = new WorkState();
         chunksToProcess = new List<Chunk>();
+        runningJobs = new List<JobData>();
         staticEntitySpawner = GetComponent<StaticEntityManager>();
     }
 
     private void Update() {
+
+        foreach (JobData jobData in runningJobs) {
+            jobData.Complete();
+        }
+        runningJobs.Clear();
         UnloadChunk();
         LoadExistingChunks();
         InitNewChunks();
         GetChunksToProcess();
         ProcessChunks();
+    }
+
+    private void LateUpdate() {
     }
 
     private void GetChunksToProcess() {
@@ -64,10 +74,10 @@ public class ChunkController : MonoBehaviour {
     private void ProcessChunks() {
         switch (workState.workState) {
             case WorkState.FILL:
-                GameManager.instance.voxelDataController.GenerateDataForChunks(chunksToProcess);
+                runningJobs = GameManager.instance.voxelDataController.GenerateDataForChunks(chunksToProcess);
                 break;
             case WorkState.MESH:
-                GameManager.instance.voxelDataController.GenerateMeshForChunks(chunksToProcess, GetPlayerChunkCoord());
+                runningJobs = GameManager.instance.voxelDataController.GenerateMeshForChunks(chunksToProcess, GetPlayerChunkCoord());
                 break;
             case WorkState.BAKE:
                 GameManager.instance.voxelDataController.BakeColliderForChunks(chunksToProcess);

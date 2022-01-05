@@ -45,22 +45,12 @@ public class Chunk {
 
     public Mesh GenerateMesh(NativeArray<VertexData> vertices, NativeArray<ushort> triangles) {
         Mesh mesh = new Mesh();
-        SubMeshDescriptor subMesh = new SubMeshDescriptor();
 
         mesh.SetVertexBufferParams(vertices.Length, VertexData.bufferMemoryLayout);
         mesh.SetIndexBufferParams(vertices.Length, IndexFormat.UInt16);
 
         mesh.SetVertexBufferData(vertices, 0, 0, vertices.Length, 0, MeshUpdateFlags.DontValidateIndices);
         mesh.SetTriangles(triangles.ToArray(), 0);
-        mesh.subMeshCount = 1;
-        subMesh.indexCount = triangles.Length;
-        subMesh.topology = MeshTopology.Triangles;
-        mesh.SetSubMesh(0, subMesh);
-        Vector2[] uvs = new Vector2[vertices.Length];
-        for (int i = 0; i < vertices.Length; i++) {
-            uvs[i] = new Vector2(vertices[i].position.x / (WorldSettings.chunkDimension.x - 1) / WorldSettings.voxelSize, vertices[i].position.z / (WorldSettings.chunkDimension.z - 1) / WorldSettings.voxelSize);
-        }
-        mesh.uv = uvs;
 
         mesh.RecalculateBounds();
         return mesh;
